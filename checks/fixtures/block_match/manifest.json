@@ -1,0 +1,7 @@
+{
+  "bar": {"max_abs": 1e-3, "cosine": 0.9999},
+  "tensors": [
+    {"name": "block_00", "file": "block_00.f32", "shape": [2, 8]},
+    {"name": "logits", "file": "logits.npy", "shape": [2, 6], "bar": {"max_abs": 2e-3}}
+  ]
+}

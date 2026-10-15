@@ -1,0 +1,22 @@
+# lane working dir (design notes, iteration logs, local LiteRT checkout, build logs)
+.lane/
+# model weights and generated graphs are never committed
+*.safetensors
+*.tflite
+*.gguf
+*.bin
+# reference dumps and result tensors (large); the JSON summaries next to them are committed
+*.npz
+*.npy
+*.f32
+*.i32
+# except the checks' fixtures: a few dozen values each
+!checks/fixtures/**/*.f32
+!checks/fixtures/**/*.npy
+# bazel
+bazel-*
+# python / editor
+__pycache__/
+*.pyc
+.venv/
+.DS_Store

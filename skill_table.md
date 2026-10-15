@@ -1,0 +1,35 @@
+# Skill table — bringing a model up on the LiteRT Tensor API
+
+This is the table the agent works through when it authors a model's graphs with the
+[LiteRT Tensor API](https://github.com/google-ai-edge/LiteRT/tree/main/tensor) (C++, no converter).
+One row is one thing to try or to rule out. The agent works the rows top to bottom, writes the
+status and the evidence path into each row, and `tools/done_check.py` refuses "done" while any
+row is still `not yet`.
+
+Status words (one per row, exactly these):
+
+- `not yet` — not worked on in any iteration so far.
+- `tried` — done; the `evidence` cell names a file that shows the result (a check's output, a log, a table).
+- `not applicable: <reason>` — the row cannot apply to this model (for example a single-forward model has no state).
+- `blocked: <cause>` — something outside the agent's reach stops it (a missing device, a runtime bug with its issue number). A person decides.
+
+Copy this file to `models/<name>/skill_table.md` and fill the `status` and `evidence` columns there.
+Keep every form you measured: a slower or failing form stays in the evidence, with its number.
+
+| # | row | how, on the Tensor API | pass when | status | evidence |
+|---|---|---|---|---|---|
+| 1 | Architecture and op inventory | List the blocks and the ops each block needs, and map every op to a Tensor API op (`tensor/arithmetic.h`). Name every op that has no direct equivalent and the rewrite you will use: RoPE as cos/sin tables with the rotate-half form (the `Rope` op does not emit to the flatbuffer); no control flow, sort, scatter or random ops in a graph, so loops and sampling stay on the host. | Every op has a mapping or a rewrite, written in `models/<name>/OPS.md`. | not yet | |
+| 2 | Reference forward | Run the PyTorch model on fixed inputs and dump the output of every block and the final logits in fp32, with a manifest of names and shapes. | The dumps and the manifest exist; the script that made them is in `models/<name>/reference/`. | not yet | |
+| 3 | Graph skeleton on synthetic weights | Author one signature per phase (prefill, decode) in C++ and run them on the CPU with synthetic weights under the real tensor names. | Both signatures run; every output shape equals the reference's. | not yet | |
+| 4 | Weight loading | Map every checkpoint tensor name to a graph weight; convert the dtype (bf16 to fp32); handle tied embeddings and layout transposes. | Every graph weight has a source tensor; the name map and a shape table are in the evidence. | not yet | |
+| 5 | Per-block output match, CPU fp32 | Feed the graph the reference inputs and compare each block's output with the reference dump at the same inputs. The bar is written down before the run (max abs difference, cosine). Report the first block that diverges. | `checks/block_match.py` passes on every block. | not yet | |
+| 6 | Output text match | Greedy-decode a fixed number of tokens for a few prompts and compare the token ids with the reference at every position. | `checks/text_match.py` passes: every id equal. | not yet | |
+| 7 | State and KV cache | Keep the caches as signature inputs and outputs, written at a runtime position with `DynamicUpdateSlice` (the Metal delegate rejects a constant start index). Chain decode steps and compare with the stateless reference. Rebind cache outputs to the next call's inputs by buffer handle, not by copy. | N chained steps match the reference; the rebind form is named. | not yet | |
+| 8 | Attention form | Compare raw ops with the composites the delegates fuse (`odml.scaled_dot_product_attention`, `odml.runtime_bmm`, `odml.rms_norm`). Pre-fold grouped-query attention into batched multi-head shapes before using the sdpa composite: the un-folded form is claimed by the Metal delegate and computed wrong when the query length is above 1. Verify CPU output match with the raw form. | The chosen form equals the raw form on the CPU and is listed per backend with its time. | not yet | |
+| 9 | Which ops go to which accelerator | Run on the GPU delegate (Metal on macOS, OpenCL on Android) and record the partitions, the ops that fell back to the CPU, and any compile failure text. A GPU output that is bit-identical to the CPU fp16 output is the smell of a silent fallback: confirm delegation explicitly. | The delegation report exists and every op class has its backend written down. | not yet | |
+| 10 | GPU precision | The Metal delegate's default compute precision is fp16. Run fp32 and fp16, label every number with its precision, and compare both with the reference. | fp32 within the bar; the fp16 difference recorded (greedy ids can flip over long rollouts). | not yet | |
+| 11 | Buffer storage and large tensors | With texture storage, large tensors can make the whole graph run on the CPU with no message. Use buffer storage at the real shapes and confirm with the delegation report. | Delegation confirmed at the shapes the model uses. | not yet | |
+| 12 | Quantization | Weights fp32, then int8 per-channel, then int4 blockwise-32. Run the output match and the timing for each form. On the CPU the int4 fast kernels are GEMV-shaped: they win for one-token decode and lose at prefill widths of 64 and above. | Each form has its match result and its time; the fastest form that passes the match is named. | not yet | |
+| 13 | Speed floor | Measure decode ms per token for each form against the CPU fp32 run of the same graph (the floor). Keep the fastest form that passes the match. | `checks/speed_floor.py` passes: the floor is beaten by the named form. | not yet | |
+| 14 | Phone run | Build the same graph for the phone, run it on the phone's GPU (OpenCL on Android, Metal on iOS) and on its CPU, compare with the Mac dumps, and time it. | Match within the bar and ms per token recorded for the phone. | not yet | |
+| 15 | Environment record | Record the LiteRT commit, the toolchain versions, the weights' sha256 and every flag used, so the next person can reproduce the rows. | Recorded in `models/<name>/ENVIRONMENT.md`. | not yet | |

@@ -1,0 +1,8 @@
+{
+  "floor": {"form": "cpu fp32", "ms_per_token": 40.0},
+  "forms": [
+    {"form": "cpu fp32", "backend": "cpu", "precision": "fp32", "ms_per_token": 40.0, "match": "PASS"},
+    {"form": "metal fp16", "backend": "metal", "precision": "fp16", "ms_per_token": 9.0, "match": "FAIL"},
+    {"form": "metal fp32", "backend": "metal", "precision": "fp32", "ms_per_token": 55.0, "match": "PASS"}
+  ]
+}

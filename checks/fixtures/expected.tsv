@@ -1,0 +1,24 @@
+tools/done_check.py checks/fixtures/done_check/not_yet.md	1
+tools/done_check.py checks/fixtures/done_check/done.md	0
+tools/done_check.py checks/fixtures/done_check/blocked.md	3
+tools/done_check.py checks/fixtures/done_check/bad_word.md	2
+tools/done_check.py checks/fixtures/done_check/tried_no_evidence.md	2
+tools/done_check.py checks/fixtures/done_check/no_table.md	2
+tools/done_check.py checks/fixtures/done_check/done.md checks/fixtures/done_check/blocked.md	3
+tools/done_check.py skill_table.md	1
+tools/done_check.py	2
+tools/iteration_close_check.py checks/fixtures/iteration_close/ok.md	0
+tools/iteration_close_check.py iterations/ITERATION_CLOSE.md	0
+tools/iteration_close_check.py checks/fixtures/iteration_close/missing_heading.md	1
+tools/iteration_close_check.py checks/fixtures/iteration_close/empty_section.md	1
+tools/iteration_close_check.py	2
+checks/block_match.py --got checks/fixtures/block_match/got_ok --ref checks/fixtures/block_match/ref --manifest checks/fixtures/block_match/manifest.json	0
+checks/block_match.py --got checks/fixtures/block_match/got_bad --ref checks/fixtures/block_match/ref --manifest checks/fixtures/block_match/manifest.json	1
+checks/block_match.py --got checks/fixtures/block_match/got_short --ref checks/fixtures/block_match/ref --manifest checks/fixtures/block_match/manifest.json	2
+checks/block_match.py --got checks/fixtures/block_match/got_ok --ref checks/fixtures/block_match/ref	2
+checks/text_match.py --got checks/fixtures/text_match/got_equal.json --ref checks/fixtures/text_match/ref.json	0
+checks/text_match.py --got checks/fixtures/text_match/got_diff.json --ref checks/fixtures/text_match/ref.json	1
+checks/text_match.py --got checks/fixtures/text_match/bad.json --ref checks/fixtures/text_match/ref.json	2
+checks/speed_floor.py --timing checks/fixtures/speed_floor/beats.json	0
+checks/speed_floor.py --timing checks/fixtures/speed_floor/slower.json	1
+checks/speed_floor.py --timing checks/fixtures/speed_floor/bad.json	2

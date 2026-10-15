@@ -1,0 +1,6 @@
+{
+  "floor": {"form": "cpu fp32"},
+  "forms": [
+    {"form": "metal fp32", "backend": "metal", "precision": "fp32", "ms_per_token": 14.0, "match": "yes"}
+  ]
+}
