@@ -1,0 +1,18 @@
+tensor    shape                    max_abs       cosine  bar                            result
+chain_00  [151936]              8.5831e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_01  [151936]              3.9101e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_02  [151936]              5.0545e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_03  [151936]              3.9101e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_04  [151936]              3.8624e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_05  [151936]              3.9101e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_06  [151936]              3.7193e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_07  [151936]              9.8228e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_08  [151936]              4.2915e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_09  [151936]              3.5286e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_10  [151936]              4.0054e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_11  [151936]              3.7193e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_12  [151936]              4.9829e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_13  [151936]              5.2452e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_14  [151936]              6.6757e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+chain_15  [151936]              5.2452e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+BLOCK MATCH PASS 16/16

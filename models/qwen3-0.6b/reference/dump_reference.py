@@ -4,6 +4,7 @@
 usage:
   dump_reference.py dump --model <snapshot dir> --dumps <dir> --repo <reference dir>
   dump_reference.py decode --model <snapshot dir> --ids <ids.json> --out <text file>
+  dump_reference.py chain --model <snapshot dir> --dumps <dir> --repo <reference dir>
 
 dump: loads the checkpoint in fp32 on the CPU and, for each fixed prompt (plain
 text, no chat template, the tokenizer's default special tokens),
@@ -23,6 +24,16 @@ text, no chat template, the tokenizer's default special tokens),
   the script asserts the hooks agree with output_hidden_states.
 
 decode: writes one line per prompt of an ids JSON: "<id>\t<decoded text>".
+
+chain: the stateless reference for chained decode. For each prompt in
+  <repo>/ref_ids.json (prompt + 16 greedy ids), runs one fp32 forward over all
+  ids with no cache (use_cache=False) and writes the logits rows at positions
+  S-1 .. S+14 to <dumps>/<prompt id>/chain_00.f32 .. chain_15.f32 ([151936]
+  each): row i is the input of generated token i + 1, so the graph's prefill
+  logits (i = 0) and its 15 decode steps compare with it. Asserts that row i's
+  argmax is generated token i + 1. Writes <repo>/manifest_chain_<id>.json with
+  the bar fixed here: cosine >= 0.9999, max_abs <= max(5e-2, 1e-3 * max|ref|)
+  (the logits bar of the dump manifests).
 """
 
 import argparse
@@ -173,6 +184,49 @@ def decode(args):
     return 0
 
 
+def chain(args):
+    model = AutoModelForCausalLM.from_pretrained(
+        args.model, dtype=torch.float32, attn_implementation="eager")
+    model.eval()
+    with open(os.path.join(args.repo, "ref_ids.json")) as f:
+        ref = json.load(f)["prompts"]
+    with open(os.path.join(args.repo, "prompts.json")) as f:
+        lengths = {p["id"]: p["S"] for p in json.load(f)["prompts"]}
+    for p in ref:
+        pid, ids, seq = p["id"], p["ids"], lengths[p["id"]]
+        steps = len(ids) - seq
+        d = os.path.join(args.dumps, pid)
+        os.makedirs(d, exist_ok=True)
+        with torch.no_grad():
+            logits = model(torch.tensor([ids]), use_cache=False).logits[0]
+        tensors = []
+        for i in range(steps):
+            row = logits[seq - 1 + i]
+            assert int(torch.argmax(row)) == ids[seq + i], (pid, i)
+            name = f"chain_{i:02d}"
+            arr = write_f32(os.path.join(d, f"{name}.f32"), row)
+            max_ref = float(np.max(np.abs(arr)))
+            tensors.append({"name": name, "file": f"{name}.f32", "shape": [arr.shape[0]],
+                            "max_abs_ref": max_ref, "bar": {"max_abs": bar_max_abs(max_ref, 5e-2)}})
+        manifest = {
+            "bar": {"cosine": COSINE},
+            "note": ("Stateless reference for chained decode, prompt %s (S = %d): one CPU fp32 "
+                     "forward (transformers %s, torch %s, eager attention, use_cache=False) over "
+                     "prompt + %d generated ids; row i = logits at position S-1+i, whose argmax is "
+                     "generated token i+1 (asserted). chain_00 is the prefill's last-position "
+                     "logits, chain_01.. are the decode steps. Bar fixed at dump time: cosine >= "
+                     "%g, max_abs <= max(5e-2, 1e-3 * max|ref|)."
+                     % (pid, seq, transformers.__version__, torch.__version__, steps, COSINE)),
+            "tensors": tensors,
+        }
+        with open(os.path.join(args.repo, f"manifest_chain_{pid}.json"), "w") as f:
+            json.dump(manifest, f, indent=1)
+            f.write("\n")
+        print(f"{pid}: S={seq}, {steps} chain rows, argmax == generated ids")
+    print("DONE reference chain")
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -184,9 +238,14 @@ def main():
     b.add_argument("--model", required=True)
     b.add_argument("--ids", required=True)
     b.add_argument("--out", required=True)
+    c = sub.add_parser("chain")
+    c.add_argument("--model", required=True, help="Hugging Face snapshot directory")
+    c.add_argument("--dumps", required=True, help="where the f32 dumps go (not committed)")
+    c.add_argument("--repo", required=True,
+                   help="reference dir: reads ref_ids.json and prompts.json, writes manifests")
     args = ap.parse_args()
     torch.manual_seed(0)
-    return dump(args) if args.cmd == "dump" else decode(args)
+    return {"dump": dump, "decode": decode, "chain": chain}[args.cmd](args)
 
 
 if __name__ == "__main__":

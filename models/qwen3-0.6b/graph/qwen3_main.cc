@@ -15,11 +15,24 @@
 // position's logits), to <dump_dir>/<id>/ as raw fp32.
 // --greedy=N writes <out_ids> as {"prompts": [{"id", "ids"}]}: the prompt
 // ids followed by N generated ids (1 from prefill, N - 1 decode steps).
+// --dump_chain (with --greedy and --dump_dir) writes chain_00.f32 (the
+// prefill logits at the last prompt position) and chain_01.f32 ..
+// chain_<N-1>.f32 (each decode step's logits), each [vocab] fp32, to
+// <dump_dir>/<id>/.
+// --delegation_report compiles the model once more before the runner is
+// created and prints CompiledModel::GetDelegationMetrics() (the runner keeps
+// its CompiledModel private): total nodes, then per accelerator the delegated
+// node count and the partition count.
+// --rebind=copy reads each cache output to the host and writes it into the
+// next call's input (a diagnostic); the default, handle, passes the output
+// handle to SetInput, which binds a duplicate of the output TensorBuffer
+// without copying its contents.
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -33,7 +46,11 @@
 #include "absl/status/status.h"  // from @com_google_absl
 #include "absl/strings/str_cat.h"  // from @com_google_absl
 #include "absl/strings/str_join.h"  // from @com_google_absl
+#include "litert/c/internal/litert_logging.h"
+#include "litert/c/litert_common.h"
+#include "litert/cc/litert_compiled_model.h"
 #include "litert/cc/litert_environment.h"
+#include "litert/cc/litert_environment_options.h"
 #include "litert/cc/litert_options.h"
 #include "litert/cc/options/litert_gpu_options.h"
 #include "tensor/backends/tflite/tflite_flatbuffer_conversion.h"
@@ -63,6 +80,16 @@ ABSL_FLAG(std::string, gpu_buffer_storage, "default",
           "default|buffer|texture2d GPU tensor storage");
 ABSL_FLAG(std::string, tflite_path, "/tmp/qwen3_0_6b.tflite",
           "Where to write the serialized model");
+ABSL_FLAG(bool, dump_chain, false,
+          "Dump the prefill last-position logits and every decode step's "
+          "logits as chain_NN.f32 (needs --greedy and --dump_dir)");
+ABSL_FLAG(bool, delegation_report, true,
+          "Print the delegation metrics of a separately compiled model");
+ABSL_FLAG(std::string, log_level, "",
+          "info|debug|verbose: the LiteRT logger's minimum severity (empty = "
+          "the runtime default)");
+ABSL_FLAG(std::string, rebind, "handle",
+          "handle|copy: how cache outputs become the next call's inputs");
 
 namespace {
 
@@ -192,6 +219,53 @@ absl::StatusOr<::litert::Options> MakeOptions() {
   return std::move(*options);
 }
 
+std::string HwName(LiteRtHwAcceleratorSet hw) {
+  std::vector<std::string> names;
+  if (hw & kLiteRtHwAcceleratorCpu) names.push_back("cpu");
+  if (hw & kLiteRtHwAcceleratorGpu) names.push_back("gpu");
+  if (hw & kLiteRtHwAcceleratorNpu) names.push_back("npu");
+  if (names.empty()) names.push_back("none");
+  return absl::StrCat(absl::StrJoin(names, "+"), "(", hw, ")");
+}
+
+// Compiles the serialized model with the run's options and prints the
+// delegation metrics. A compile failure is printed and returned.
+absl::Status PrintDelegationReport(::litert::Environment& env,
+                                   const std::string& tflite_path,
+                                   const std::string& id) {
+  auto options_or = MakeOptions();
+  if (!options_or.ok()) return options_or.status();
+  auto compiled = ::litert::CompiledModel::Create(env, tflite_path, *options_or);
+  if (!compiled) {
+    std::cout << id << " delegation: CompiledModel::Create failed: "
+              << compiled.Error().Message() << std::endl;
+    return absl::InternalError(absl::StrCat(
+        "delegation report compile failed: ", compiled.Error().Message()));
+  }
+  auto metrics = compiled->GetDelegationMetrics();
+  if (!metrics) {
+    std::cout << id << " delegation: metrics unavailable: "
+              << metrics.Error().Message() << std::endl;
+    return absl::OkStatus();
+  }
+  std::cout << id << " delegation: total_nodes " << metrics->total_node_count
+            << std::endl;
+  for (const auto& acc : metrics->accelerators) {
+    std::cout << id << " delegation: " << acc.accelerator_name
+              << " hw=" << HwName(acc.hardware_type)
+              << " delegated_nodes=" << acc.delegated_node_count
+              << " partitions=" << acc.partition_count << std::endl;
+  }
+  auto full = compiled->IsFullyAccelerated();
+  auto non_cpu_full = compiled->IsNonCpuFullyAccelerated();
+  std::cout << id << " delegation: fully_accelerated "
+            << (full ? (*full ? "true" : "false") : "unknown")
+            << ", non_cpu_fully_accelerated "
+            << (non_cpu_full ? (*non_cpu_full ? "true" : "false") : "unknown")
+            << std::endl;
+  return absl::OkStatus();
+}
+
 // Builds both signatures for one prompt length, runs prefill (+ dumps) and
 // the greedy loop. Appends the generated ids to `generated`.
 absl::Status RunPrompt(::litert::Environment& env, qwen3::Qwen3Config config,
@@ -238,11 +312,16 @@ absl::Status RunPrompt(::litert::Environment& env, qwen3::Qwen3Config config,
             << (ec ? 0 : tflite_bytes) << " bytes), prefill_len " << seq
             << ", max_seq " << config.max_seq << std::endl;
 
+  if (absl::GetFlag(FLAGS_delegation_report)) {
+    auto report_status = PrintDelegationReport(env, tflite_path, prompt.id);
+    if (!report_status.ok()) return report_status;
+  }
   auto options_or = MakeOptions();
   if (!options_or.ok()) return options_or.status();
   auto runner_or = LitertDynamicRunner::Create(env, tflite_path, *options_or);
   if (!runner_or.ok()) return runner_or.status();
   auto runner = std::move(*runner_or);
+  std::cout << prompt.id << ": runner created" << std::endl;
 
   const int hd = config.head_dim;
   const int vocab = config.vocab_size;
@@ -353,12 +432,39 @@ absl::Status RunPrompt(::litert::Environment& env, qwen3::Qwen3Config config,
   if (greedy <= 0) return absl::OkStatus();
 
   // --- Greedy decode: token 1 from prefill, then greedy - 1 decode steps ---
+  const bool dump_chain = absl::GetFlag(FLAGS_dump_chain);
+  const std::string chain_dir =
+      absl::StrCat(absl::GetFlag(FLAGS_dump_dir), "/", prompt.id);
+  if (dump_chain) {
+    std::filesystem::create_directories(chain_dir, ec);
+    st = WriteRaw(chain_dir + "/chain_00.f32",
+                  std::vector<float>(last, last + vocab));
+    if (!st.ok()) return st;
+  }
+  const bool rebind_copy = absl::GetFlag(FLAGS_rebind) == "copy";
+  // Handle form: GetOutput returns a TensorHandle over a duplicate of the
+  // output TensorBuffer; SetInput sees a LitertBuffer and binds a duplicate
+  // of it with SetInputBuffer, so no cache bytes are copied.
   auto rebind = [&](const std::string& from_sig) -> absl::Status {
     for (int i = 0; i < config.n_layers; ++i) {
       for (const char* kind : {"key_cache_", "value_cache_"}) {
-        auto t = runner.GetOutput(from_sig, absl::StrCat(kind, i, "_new"));
+        const std::string in_name = absl::StrCat(kind, i);
+        const std::string out_name = absl::StrCat(in_name, "_new");
+        if (rebind_copy) {
+          std::vector<float> v;
+          auto s = ReadFloats(runner, from_sig, out_name, v);
+          if (!s.ok()) return s;
+          s = runner.SetInput(
+              "decode", in_name,
+              Create(in_name.c_str(), Type::kFP32,
+                     {1, config.n_kv_groups, config.max_seq, hd},
+                     std::move(v)));
+          if (!s.ok()) return s;
+          continue;
+        }
+        auto t = runner.GetOutput(from_sig, out_name);
         if (!t.ok()) return t.status();
-        auto s = runner.SetInput("decode", absl::StrCat(kind, i), *t);
+        auto s = runner.SetInput("decode", in_name, *t);
         if (!s.ok()) return s;
       }
     }
@@ -380,6 +486,12 @@ absl::Status RunPrompt(::litert::Environment& env, qwen3::Qwen3Config config,
     }
     st = ReadFloats(runner, "decode", "logits", logits);
     if (!st.ok()) return st;
+    if (dump_chain) {
+      char name[32];
+      std::snprintf(name, sizeof(name), "/chain_%02d.f32", step);
+      st = WriteRaw(chain_dir + name, logits);
+      if (!st.ok()) return st;
+    }
     tok = ArgMaxRow(logits.data(), vocab);
     generated.push_back(tok);
     st = rebind("decode");
@@ -401,6 +513,36 @@ absl::Status Run() {
   if (greedy > 0 && absl::GetFlag(FLAGS_out_ids).empty()) {
     return absl::InvalidArgumentError("--greedy needs --out_ids");
   }
+  if (absl::GetFlag(FLAGS_dump_chain) &&
+      (greedy <= 0 || absl::GetFlag(FLAGS_dump_dir).empty())) {
+    return absl::InvalidArgumentError(
+        "--dump_chain needs --greedy and --dump_dir");
+  }
+  const std::string rebind = absl::GetFlag(FLAGS_rebind);
+  if (rebind != "handle" && rebind != "copy") {
+    return absl::InvalidArgumentError("--rebind must be handle|copy");
+  }
+  std::vector<::litert::EnvironmentOptions::Option> env_options;
+  const std::string log_level = absl::GetFlag(FLAGS_log_level);
+  if (!log_level.empty()) {
+    int64_t severity;
+    if (log_level == "info") {
+      severity = kLiteRtLogSeverityInfo;
+    } else if (log_level == "debug") {
+      severity = kLiteRtLogSeverityDebug;
+    } else if (log_level == "verbose") {
+      severity = kLiteRtLogSeverityVerbose;
+    } else {
+      return absl::InvalidArgumentError(
+          "--log_level must be info|debug|verbose");
+    }
+    env_options.emplace_back(
+        ::litert::EnvironmentOptions::Tag::kMinLoggerSeverity,
+        ::litert::LiteRtVariant(severity));
+    std::cout << "log level: " << log_level << " (" << severity << ")"
+              << std::endl;
+  }
+  std::cout << "rebind: " << rebind << std::endl;
   auto prompts_or = ReadIdsFile(absl::GetFlag(FLAGS_ids_file));
   if (!prompts_or.ok()) return prompts_or.status();
 
@@ -420,7 +562,8 @@ absl::Status Run() {
               << std::endl;
   }
 
-  auto env = ::litert::Environment::Create({});
+  auto env = ::litert::Environment::Create(
+      ::litert::EnvironmentOptions(env_options));
   if (!env) return absl::InternalError("Environment::Create failed");
 
   std::ostringstream json;

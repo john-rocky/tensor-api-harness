@@ -58,3 +58,34 @@ python3 checks/text_match.py --got <dump dir>/got/got_ids.json --ref models/qwen
 
 Flags left at their defaults: `--max_seq=64` (the KV cache length; prompt + 16 tokens fit),
 `--gpu_precision` and `--gpu_buffer_storage` (unused on the CPU).
+
+## Iteration 2 (rows 7, 9, 10, 11)
+
+Same LiteRT commit, toolchain, machine, Python environments and weights as above. No phone.
+
+- Metal accelerator: the prebuilt `libLiteRtMetalAccelerator.dylib` that the build fetches as
+  `@litert_prebuilts` (the checkout's `third_party/litert_prebuilts/workspace.bzl` points at a
+  `latest` archive, so the commit does not pin it). sha256 of the file used:
+  `5531feca4ff0e2c67628e09d635a6f79da74534e88b7a3d262efa5dcda59e95d`. The log does not print the
+  GPU's name; the machine is the Apple M4 Max above.
+- Metal runs, from `<LiteRT checkout>` (the working directory is the checkout root):
+
+```
+DYLD_LIBRARY_PATH=<LiteRT checkout>/bazel-bin/tensor/examples/qwen3-0.6b/qwen3_main.runfiles/litert_prebuilts/macos_arm64 \
+  bazel-bin/tensor/examples/qwen3-0.6b/qwen3_main --weights=<HF cache>/.../model.safetensors \
+  --ids_file=<dump dir>/ref/ids_all.txt --greedy=16 --dump_chain --dump_dir=<dump dir>/got_metal_fp32 \
+  --out_ids=<dump dir>/got_metal_fp32/ids.json --accelerator=gpu --gpu_precision=fp32 \
+  --gpu_buffer_storage=buffer --tflite_path=<tmp>/qwen3_gpu.tflite
+```
+
+- Flags used in this iteration: `--accelerator=cpu|gpu`, `--gpu_precision=fp32|fp16` (always set
+  explicitly; the delegate's default is fp16), `--gpu_buffer_storage=buffer|default|texture2d`,
+  `--dump_chain` (with `--greedy=16` and `--dump_dir`), `--dump_blocks`, `--log_level=verbose`
+  (one Metal run), `--delegation_report` (default on), `--rebind=handle` (the default; `copy` was
+  not needed). `--max_seq` stays 64.
+- Row 7 reference: `python reference/dump_reference.py chain --model <HF cache>/models--Qwen--Qwen3-0.6B/snapshots/c1899de289a04d12100db370d81485cdf75e47ca --dumps <dump dir>/ref --repo <this repo>/models/qwen3-0.6b/reference`
+  (writes `manifest_chain_p*.json`), then
+  `python3 checks/block_match.py --got <dump dir>/got_chain/p0 --ref <dump dir>/ref/p0 --manifest models/qwen3-0.6b/reference/manifest_chain_p0.json`
+  (and p1, p2; the Metal chain uses the same manifests).
+- Rows 9 to 11: the Metal block dumps use the iteration 1 manifests unchanged
+  (`reference/manifest_p*.json`).

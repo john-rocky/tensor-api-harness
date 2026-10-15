@@ -1,0 +1,184 @@
+{
+ "bar": {
+  "cosine": 0.9999
+ },
+ "note": "Stateless reference for chained decode, prompt p1 (S = 4): one CPU fp32 forward (transformers 5.19.0, torch 2.14.1, eager attention, use_cache=False) over prompt + 16 generated ids; row i = logits at position S-1+i, whose argmax is generated token i+1 (asserted). chain_00 is the prefill's last-position logits, chain_01.. are the decode steps. Bar fixed at dump time: cosine >= 0.9999, max_abs <= max(5e-2, 1e-3 * max|ref|).",
+ "tensors": [
+  {
+   "name": "chain_00",
+   "file": "chain_00.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 21.663284301757812,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_01",
+   "file": "chain_01.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 23.897329330444336,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_02",
+   "file": "chain_02.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 21.196395874023438,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_03",
+   "file": "chain_03.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 22.922653198242188,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_04",
+   "file": "chain_04.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 22.667953491210938,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_05",
+   "file": "chain_05.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 23.410253524780273,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_06",
+   "file": "chain_06.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 25.480567932128906,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_07",
+   "file": "chain_07.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 21.333614349365234,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_08",
+   "file": "chain_08.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 25.998762130737305,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_09",
+   "file": "chain_09.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 24.989748001098633,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_10",
+   "file": "chain_10.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 23.66685676574707,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_11",
+   "file": "chain_11.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 27.535724639892578,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_12",
+   "file": "chain_12.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 21.63005828857422,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_13",
+   "file": "chain_13.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 25.206846237182617,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_14",
+   "file": "chain_14.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 23.82278823852539,
+   "bar": {
+    "max_abs": 0.05
+   }
+  },
+  {
+   "name": "chain_15",
+   "file": "chain_15.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 24.751829147338867,
+   "bar": {
+    "max_abs": 0.05
+   }
+  }
+ ]
+}
