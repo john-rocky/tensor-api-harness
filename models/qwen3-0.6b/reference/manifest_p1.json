@@ -1,0 +1,379 @@
+{
+ "bar": {
+  "cosine": 0.9999
+ },
+ "note": "CPU fp32 reference, transformers 5.19.0, torch 2.14.1, eager attention. Shapes are [S, hidden] for prompt p1 (S = 4). emb = embed_tokens output; block_NN = decoder layer NN output (forward hook); final_norm = model.norm output (= output_hidden_states[-1] in this version, which therefore is not block_27: verified, they differ). Bar fixed at dump time: cosine >= 0.9999, max_abs <= max(2e-2, 1e-3 * max|ref|), logits_last max(5e-2, 1e-3 * max|ref|).",
+ "tensors": [
+  {
+   "name": "emb",
+   "file": "emb.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 0.09814453125,
+   "bar": {
+    "max_abs": 0.02
+   }
+  },
+  {
+   "name": "block_00",
+   "file": "block_00.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 4.31466007232666,
+   "bar": {
+    "max_abs": 0.02
+   }
+  },
+  {
+   "name": "block_01",
+   "file": "block_01.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 9.950922012329102,
+   "bar": {
+    "max_abs": 0.02
+   }
+  },
+  {
+   "name": "block_02",
+   "file": "block_02.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5751.4912109375,
+   "bar": {
+    "max_abs": 5.7514912109375
+   }
+  },
+  {
+   "name": "block_03",
+   "file": "block_03.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5750.74169921875,
+   "bar": {
+    "max_abs": 5.75074169921875
+   }
+  },
+  {
+   "name": "block_04",
+   "file": "block_04.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5750.34228515625,
+   "bar": {
+    "max_abs": 5.7503422851562505
+   }
+  },
+  {
+   "name": "block_05",
+   "file": "block_05.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5750.28173828125,
+   "bar": {
+    "max_abs": 5.7502817382812506
+   }
+  },
+  {
+   "name": "block_06",
+   "file": "block_06.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5748.4697265625,
+   "bar": {
+    "max_abs": 5.7484697265625
+   }
+  },
+  {
+   "name": "block_07",
+   "file": "block_07.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5746.6474609375,
+   "bar": {
+    "max_abs": 5.7466474609375
+   }
+  },
+  {
+   "name": "block_08",
+   "file": "block_08.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5742.8076171875,
+   "bar": {
+    "max_abs": 5.7428076171875
+   }
+  },
+  {
+   "name": "block_09",
+   "file": "block_09.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5737.18994140625,
+   "bar": {
+    "max_abs": 5.73718994140625
+   }
+  },
+  {
+   "name": "block_10",
+   "file": "block_10.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5735.69921875,
+   "bar": {
+    "max_abs": 5.73569921875
+   }
+  },
+  {
+   "name": "block_11",
+   "file": "block_11.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5732.384765625,
+   "bar": {
+    "max_abs": 5.732384765625
+   }
+  },
+  {
+   "name": "block_12",
+   "file": "block_12.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5730.0576171875,
+   "bar": {
+    "max_abs": 5.7300576171875
+   }
+  },
+  {
+   "name": "block_13",
+   "file": "block_13.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5727.8447265625,
+   "bar": {
+    "max_abs": 5.7278447265625
+   }
+  },
+  {
+   "name": "block_14",
+   "file": "block_14.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5723.662109375,
+   "bar": {
+    "max_abs": 5.723662109375
+   }
+  },
+  {
+   "name": "block_15",
+   "file": "block_15.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5722.41015625,
+   "bar": {
+    "max_abs": 5.7224101562500005
+   }
+  },
+  {
+   "name": "block_16",
+   "file": "block_16.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5720.8671875,
+   "bar": {
+    "max_abs": 5.720867187500001
+   }
+  },
+  {
+   "name": "block_17",
+   "file": "block_17.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5722.203125,
+   "bar": {
+    "max_abs": 5.722203125
+   }
+  },
+  {
+   "name": "block_18",
+   "file": "block_18.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5726.70068359375,
+   "bar": {
+    "max_abs": 5.72670068359375
+   }
+  },
+  {
+   "name": "block_19",
+   "file": "block_19.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5736.3447265625,
+   "bar": {
+    "max_abs": 5.7363447265625
+   }
+  },
+  {
+   "name": "block_20",
+   "file": "block_20.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5742.3203125,
+   "bar": {
+    "max_abs": 5.7423203125
+   }
+  },
+  {
+   "name": "block_21",
+   "file": "block_21.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5750.12255859375,
+   "bar": {
+    "max_abs": 5.75012255859375
+   }
+  },
+  {
+   "name": "block_22",
+   "file": "block_22.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5754.64501953125,
+   "bar": {
+    "max_abs": 5.75464501953125
+   }
+  },
+  {
+   "name": "block_23",
+   "file": "block_23.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5761.03662109375,
+   "bar": {
+    "max_abs": 5.7610366210937505
+   }
+  },
+  {
+   "name": "block_24",
+   "file": "block_24.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5765.806640625,
+   "bar": {
+    "max_abs": 5.765806640625
+   }
+  },
+  {
+   "name": "block_25",
+   "file": "block_25.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5767.90234375,
+   "bar": {
+    "max_abs": 5.76790234375
+   }
+  },
+  {
+   "name": "block_26",
+   "file": "block_26.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 5531.4609375,
+   "bar": {
+    "max_abs": 5.5314609375
+   }
+  },
+  {
+   "name": "block_27",
+   "file": "block_27.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 1065.9443359375,
+   "bar": {
+    "max_abs": 1.0659443359375
+   }
+  },
+  {
+   "name": "final_norm",
+   "file": "final_norm.f32",
+   "shape": [
+    4,
+    1024
+   ],
+   "max_abs_ref": 49.414710998535156,
+   "bar": {
+    "max_abs": 0.04941471099853516
+   }
+  },
+  {
+   "name": "logits_last",
+   "file": "logits_last.f32",
+   "shape": [
+    151936
+   ],
+   "max_abs_ref": 21.663284301757812,
+   "bar": {
+    "max_abs": 0.05
+   }
+  }
+ ]
+}

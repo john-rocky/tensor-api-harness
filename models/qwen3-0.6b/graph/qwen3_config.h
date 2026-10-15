@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: Apache-2.0
+// Qwen3-0.6B text decoder config (Qwen/Qwen3-0.6B config.json).
+
+#ifndef TENSOR_EXAMPLES_QWEN3_0_6B_QWEN3_CONFIG_H_
+#define TENSOR_EXAMPLES_QWEN3_0_6B_QWEN3_CONFIG_H_
+
+namespace litert::tensor::examples::qwen3 {
+
+struct Qwen3Config {
+  int emb_dim = 1024;
+  int n_layers = 28;
+  int n_heads = 16;
+  int n_kv_groups = 8;
+  int head_dim = 128;
+  int hidden_dim = 3072;
+  int vocab_size = 151936;
+  float rms_norm_eps = 1e-6f;
+  float rope_base = 1000000.0f;
+
+  // Fixed KV cache length and the static prefill length (the prompt length).
+  int max_seq = 64;
+  int prefill_len = 8;
+
+  // Graph-construction switch: add the embedding output, every decoder
+  // block's output and the final norm output to the prefill signature's
+  // outputs, for the per-block output match.
+  bool dump_blocks = false;
+
+  int qkv_out_dim() const { return n_heads * head_dim; }
+  int kv_out_dim() const { return n_kv_groups * head_dim; }
+};
+
+}  // namespace litert::tensor::examples::qwen3
+
+#endif  // TENSOR_EXAMPLES_QWEN3_0_6B_QWEN3_CONFIG_H_

@@ -1,0 +1,3 @@
+p0	"The capital of France is Paris. The capital of Italy is Rome. The capital of Spain is Madrid."
+p1	"def fibonacci(n):\n    if n == 0:\n        return 0\n    elif n"
+p2	"In 1969, humans first landed on the Moon. The mission was called the \"Miracle on the Moon.\" The first person to land on the Moon"

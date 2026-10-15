@@ -1,0 +1,45 @@
+# Row 3: synthetic-weight run (no --weights; seed 42, real shapes), CPU fp32.
+# Command: qwen3_main --ids_file=<dump dir>/ref/p0/ids.txt --dump_blocks --dump_dir=<dump dir>/got_synth --greedy=3 --out_ids=<dump dir>/got_synth/ids.json --accelerator=cpu --tflite_path=<tmp>/qwen3_synth.tflite
+# Both signatures (prefill, decode) built, serialized, compiled and run; exit code 0. Log lines below, INFO/WARNING lines removed.
+weights: synthetic (seed 42), 310 tensors
+p0: serialized <tmp>/qwen3_synth.tflite (2384791316 bytes), prefill_len 5, max_seq 64
+p0 prefill output logits [1, 5, 151936] elements 759680
+p0 prefill output key_cache_0_new [1, 8, 64, 128] elements 65536
+p0 prefill output value_cache_0_new [1, 8, 64, 128] elements 65536
+p0 prefill output emb [1, 5, 1024] elements 5120
+p0 prefill output block_00 [1, 5, 1024] elements 5120
+p0 prefill output block_01 [1, 5, 1024] elements 5120
+p0 prefill output block_02 [1, 5, 1024] elements 5120
+p0 prefill output block_03 [1, 5, 1024] elements 5120
+p0 prefill output block_04 [1, 5, 1024] elements 5120
+p0 prefill output block_05 [1, 5, 1024] elements 5120
+p0 prefill output block_06 [1, 5, 1024] elements 5120
+p0 prefill output block_07 [1, 5, 1024] elements 5120
+p0 prefill output block_08 [1, 5, 1024] elements 5120
+p0 prefill output block_09 [1, 5, 1024] elements 5120
+p0 prefill output block_10 [1, 5, 1024] elements 5120
+p0 prefill output block_11 [1, 5, 1024] elements 5120
+p0 prefill output block_12 [1, 5, 1024] elements 5120
+p0 prefill output block_13 [1, 5, 1024] elements 5120
+p0 prefill output block_14 [1, 5, 1024] elements 5120
+p0 prefill output block_15 [1, 5, 1024] elements 5120
+p0 prefill output block_16 [1, 5, 1024] elements 5120
+p0 prefill output block_17 [1, 5, 1024] elements 5120
+p0 prefill output block_18 [1, 5, 1024] elements 5120
+p0 prefill output block_19 [1, 5, 1024] elements 5120
+p0 prefill output block_20 [1, 5, 1024] elements 5120
+p0 prefill output block_21 [1, 5, 1024] elements 5120
+p0 prefill output block_22 [1, 5, 1024] elements 5120
+p0 prefill output block_23 [1, 5, 1024] elements 5120
+p0 prefill output block_24 [1, 5, 1024] elements 5120
+p0 prefill output block_25 [1, 5, 1024] elements 5120
+p0 prefill output block_26 [1, 5, 1024] elements 5120
+p0 prefill output block_27 [1, 5, 1024] elements 5120
+p0 prefill output final_norm [1, 5, 1024] elements 5120
+p0: dumped 31 tensors to <dump dir>/got_synth/p0
+p0 decode output logits [1, 1, 151936] elements 151936
+p0 decode output key_cache_0_new [1, 8, 64, 128] elements 65536
+p0 decode output value_cache_0_new [1, 8, 64, 128] elements 65536
+p0: generated 100910 100910 100910
+wrote <dump dir>/got_synth/ids.json
+DONE qwen3_main

@@ -1,0 +1,33 @@
+tensor       shape                    max_abs       cosine  bar                            result
+emb          [18, 1024]            0.0000e+00   1.00000000  max_abs<=0.02 cosine>=0.9999   PASS
+block_00     [18, 1024]            1.4305e-06   1.00000000  max_abs<=0.02 cosine>=0.9999   PASS
+block_01     [18, 1024]            4.7684e-06   1.00000000  max_abs<=0.02 cosine>=0.9999   PASS
+block_02     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.17764 cosine>=0.9999 PASS
+block_03     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.17687 cosine>=0.9999 PASS
+block_04     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.17648 cosine>=0.9999 PASS
+block_05     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.1764 cosine>=0.9999 PASS
+block_06     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.17459 cosine>=0.9999 PASS
+block_07     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.17276 cosine>=0.9999 PASS
+block_08     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.16894 cosine>=0.9999 PASS
+block_09     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.1633 cosine>=0.9999 PASS
+block_10     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.16181 cosine>=0.9999 PASS
+block_11     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.15851 cosine>=0.9999 PASS
+block_12     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.15617 cosine>=0.9999 PASS
+block_13     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.15395 cosine>=0.9999 PASS
+block_14     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.14978 cosine>=0.9999 PASS
+block_15     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.14854 cosine>=0.9999 PASS
+block_16     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.14702 cosine>=0.9999 PASS
+block_17     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.14837 cosine>=0.9999 PASS
+block_18     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.15288 cosine>=0.9999 PASS
+block_19     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.16265 cosine>=0.9999 PASS
+block_20     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.16872 cosine>=0.9999 PASS
+block_21     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.17649 cosine>=0.9999 PASS
+block_22     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.18106 cosine>=0.9999 PASS
+block_23     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.18758 cosine>=0.9999 PASS
+block_24     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.19249 cosine>=0.9999 PASS
+block_25     [18, 1024]            9.7656e-04   1.00000000  max_abs<=6.19439 cosine>=0.9999 PASS
+block_26     [18, 1024]            9.7656e-04   1.00000000  max_abs<=5.94694 cosine>=0.9999 PASS
+block_27     [18, 1024]            1.4648e-03   1.00000000  max_abs<=1.17271 cosine>=0.9999 PASS
+final_norm   [18, 1024]            8.7738e-05   1.00000000  max_abs<=0.0780676 cosine>=0.9999 PASS
+logits_last  [151936]              5.0545e-05   1.00000000  max_abs<=0.05 cosine>=0.9999   PASS
+BLOCK MATCH PASS 31/31
