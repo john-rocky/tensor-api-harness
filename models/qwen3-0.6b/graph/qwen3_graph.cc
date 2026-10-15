@@ -5,11 +5,13 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
 #include "absl/log/absl_check.h"  // from @com_google_absl
 #include "absl/strings/str_cat.h"  // from @com_google_absl
+#include "flatbuffers/flexbuffers.h"  // from @flatbuffers
 #include "tensor/arithmetic.h"
 #include "tensor/buffer.h"
 #include "tensor/datatypes.h"
@@ -45,12 +47,33 @@ const TfTensor& GetWeight(const WeightMap& weights, const std::string& name) {
 }
 
 // RMS normalization over the last axis, raw weight (no +1 offset).
-TfTensor RmsNorm(const TfTensor& input, const TfTensor& scale, float eps) {
+TfTensor RmsNormRaw(const TfTensor& input, const TfTensor& scale, float eps) {
   TfTensor x_squared = Mul(input, input);
   int last_axis = static_cast<int>(input.GetShape().size()) - 1;
   TfTensor mean_squared = Mean(x_squared, {last_axis}, /*keep_dims=*/true);
   TfTensor inv_rms = Rsqrt(Add(mean_squared, Const1(eps)));
   return Mul(Mul(input, inv_rms), scale);
+}
+
+std::vector<uint8_t> RmsNormAttributes(float eps) {
+  flexbuffers::Builder fbb;
+  fbb.Map([&]() { fbb.Float("epsilon", eps); });
+  fbb.Finish();
+  return fbb.GetBuffer();
+}
+
+// RMS norm, raw or as the odml.rms_norm composite whose decomposition is the
+// raw math.
+TfTensor RmsNorm(const TfTensor& input, const TfTensor& scale, float eps,
+                 bool composite) {
+  if (!composite) return RmsNormRaw(input, scale, eps);
+  StableHLOCompositeOptions opts{.name = "odml.rms_norm",
+                                 .composite_attributes =
+                                     RmsNormAttributes(eps)};
+  return StableHLOComposite(
+      opts,
+      [eps](TfTensor x, TfTensor s) { return RmsNormRaw(x, s, eps); }, input,
+      scale);
 }
 
 TfTensor Silu(const TfTensor& x) { return Mul(x, Logistic(x)); }
@@ -93,6 +116,62 @@ TfTensor GqaAttention(const TfTensor& q, const TfTensor& k, const TfTensor& v,
   return Reshape(out, {1, n_heads, seq, head_dim});
 }
 
+std::vector<uint8_t> SdpaAttributes(float scale) {
+  flexbuffers::Builder fbb;
+  fbb.Map([&]() { fbb.Float("scale", scale); });
+  fbb.Finish();
+  return fbb.GetBuffer();
+}
+
+// The same GQA fold as GqaAttention, presented to the
+// odml.scaled_dot_product_attention composite as batched multi-head shapes:
+// each kv group is one batch entry holding one head over g * seq query rows,
+// q [G, g*seq, 1, hd] against k/v [G, kv_seq, 1, hd] (BSND). The un-folded
+// grouped form is claimed by the Metal delegate and computed wrong when the
+// query length is above 1. Folded query row j * seq + s reads mask row s, so
+// the mask is tiled to [1, 1, g*seq, kv_seq] before it enters the composite.
+// The decomposition runs the raw fold in the folded shapes; every element
+// gets the same scale, mask term and softmax row as in GqaAttention.
+TfTensor SdpaGqaAttention(const TfTensor& q, const TfTensor& k,
+                          const TfTensor& v, const TfTensor& mask, int n_heads,
+                          int n_kv_groups, int head_dim) {
+  const int G = n_kv_groups;
+  const int g = n_heads / n_kv_groups;
+  const int seq = q.GetShape()[2];
+  const int kv_seq = k.GetShape()[2];
+  const int D = head_dim;
+  const float scale = 1.0f / std::sqrt(static_cast<float>(head_dim));
+
+  TfTensor qf = Reshape(q, {G, g * seq, 1, D});
+  TfTensor kf = Reshape(k, {G, kv_seq, 1, D});
+  TfTensor vf = Reshape(v, {G, kv_seq, 1, D});
+  TfTensor mf = g == 1 ? mask
+                       : Reshape(Tile(mask, {1, g, 1, 1}),
+                                 {1, 1, g * seq, kv_seq});
+  StableHLOCompositeOptions opts{
+      .name = "odml.scaled_dot_product_attention",
+      .composite_attributes = SdpaAttributes(scale)};
+  TfTensor out = StableHLOComposite(
+      opts,
+      [G, g, seq, kv_seq, D, scale](TfTensor dq, TfTensor dk, TfTensor dv,
+                                    TfTensor dm) {
+        // Axis 1 <-> 2 swaps with a size-1 axis keep the linear order, so
+        // Reshape stands in for the BSND -> BNSD Transpose.
+        TfTensor qt = Reshape(dq, {G, 1, g * seq, D});
+        TfTensor kt = Reshape(dk, {G, 1, kv_seq, D});
+        TfTensor vt = Reshape(dv, {G, 1, kv_seq, D});
+        TfTensor scores =
+            BatchMatMul(qt, kt, /*adj_x=*/false, /*adj_y=*/true);
+        scores = Mul(scores, Const1(scale));
+        scores = Add(scores, dm);
+        TfTensor attn = Softmax(scores);
+        TfTensor o = BatchMatMul(attn, vt);  // [G, 1, g*seq, D]
+        return Reshape(o, {G, g * seq, 1, D});
+      },
+      qf, kf, vf, mf);
+  return Reshape(out, {1, n_heads, seq, head_dim});
+}
+
 struct AttentionResult {
   TfTensor output;
   TfTensor key_cache;
@@ -121,9 +200,9 @@ AttentionResult Attention(const Qwen3Config& config, const TfTensor& input,
                 {0, 2, 1, 3});
 
   q = RmsNorm(q, GetWeight(weights, prefix + ".q_norm.weight"),
-              config.rms_norm_eps);
+              config.rms_norm_eps, config.rms_norm_composite);
   k = RmsNorm(k, GetWeight(weights, prefix + ".k_norm.weight"),
-              config.rms_norm_eps);
+              config.rms_norm_eps, config.rms_norm_composite);
 
   q = ApplyRope(q, inputs.rope_cos, inputs.rope_sin);
   k = ApplyRope(k, inputs.rope_cos, inputs.rope_sin);
@@ -136,8 +215,13 @@ AttentionResult Attention(const Qwen3Config& config, const TfTensor& input,
   value_cache_new.SetName(absl::StrCat("value_cache_", layer_idx, "_new"));
 
   TfTensor out =
-      GqaAttention(q, key_cache_new, value_cache_new, inputs.attention_mask,
-                   config.n_heads, config.n_kv_groups, config.head_dim);
+      config.sdpa_attention
+          ? SdpaGqaAttention(q, key_cache_new, value_cache_new,
+                             inputs.attention_mask, config.n_heads,
+                             config.n_kv_groups, config.head_dim)
+          : GqaAttention(q, key_cache_new, value_cache_new,
+                         inputs.attention_mask, config.n_heads,
+                         config.n_kv_groups, config.head_dim);
   out = Reshape(Transpose(out, {0, 2, 1, 3}), {1, seq, config.qkv_out_dim()});
   out = FullyConnected(out, GetWeight(weights, prefix + ".o_proj.weight"));
   return {out, key_cache_new, value_cache_new};
@@ -268,7 +352,7 @@ Qwen3Outputs BuildQwen3(const Qwen3Config& config, const Qwen3Inputs& inputs,
     std::string p = absl::StrCat("model.layers.", i);
     TfTensor attn_in =
         RmsNorm(hidden, GetWeight(weights, p + ".input_layernorm.weight"),
-                config.rms_norm_eps);
+                config.rms_norm_eps, config.rms_norm_composite);
     AttentionResult attn =
         Attention(config, attn_in, p + ".self_attn", inputs, i, weights);
     hidden = Add(hidden, attn.output);
@@ -277,7 +361,7 @@ Qwen3Outputs BuildQwen3(const Qwen3Config& config, const Qwen3Inputs& inputs,
 
     TfTensor ffn_in = RmsNorm(
         hidden, GetWeight(weights, p + ".post_attention_layernorm.weight"),
-        config.rms_norm_eps);
+        config.rms_norm_eps, config.rms_norm_composite);
     hidden = Add(hidden, FeedForward(ffn_in, p + ".mlp", weights));
     if (dump) {
       hidden.SetName(absl::StrCat("block_", i < 10 ? "0" : "", i));
@@ -286,12 +370,16 @@ Qwen3Outputs BuildQwen3(const Qwen3Config& config, const Qwen3Inputs& inputs,
   }
 
   hidden = RmsNorm(hidden, GetWeight(weights, "model.norm.weight"),
-                   config.rms_norm_eps);
+                   config.rms_norm_eps, config.rms_norm_composite);
   if (dump) {
     hidden.SetName("final_norm");
     outputs.dumps.push_back(hidden);
+    if (config.dump_final_norm_identity) hidden = Mul(hidden, Const1(1.0f));
   }
-  outputs.logits = FullyConnected(hidden, table);  // [1, seq, vocab]
+  const TfTensor& lm_head = config.separate_lm_head
+                                ? GetWeight(weights, "lm_head.weight")
+                                : table;
+  outputs.logits = FullyConnected(hidden, lm_head);  // [1, seq, vocab]
   outputs.logits.SetName("logits");
   return outputs;
 }

@@ -1,0 +1,99 @@
+{
+  "floor": {
+    "form": "cpu fp32 raw",
+    "ms_per_token": 18.12
+  },
+  "forms": [
+    {
+      "form": "cpu fp32 raw",
+      "backend": "cpu",
+      "precision": "fp32",
+      "ms_per_token": 18.12,
+      "match": "PASS"
+    },
+    {
+      "form": "cpu fp32 rms",
+      "backend": "cpu",
+      "precision": "fp32",
+      "ms_per_token": 18.097,
+      "match": "PASS"
+    },
+    {
+      "form": "cpu int8",
+      "backend": "cpu",
+      "precision": "int8",
+      "ms_per_token": 9.226,
+      "match": "FAIL"
+    },
+    {
+      "form": "cpu int4",
+      "backend": "cpu",
+      "precision": "int4",
+      "ms_per_token": 11.389,
+      "match": "FAIL"
+    },
+    {
+      "form": "cpu int8 + lm_head int8",
+      "backend": "cpu",
+      "precision": "int8",
+      "ms_per_token": 6.055,
+      "match": "PASS"
+    },
+    {
+      "form": "cpu int4 + lm_head int8",
+      "backend": "cpu",
+      "precision": "int4",
+      "ms_per_token": 8.323,
+      "match": "FAIL"
+    },
+    {
+      "form": "metal fp32 raw",
+      "backend": "metal",
+      "precision": "fp32",
+      "ms_per_token": 8.059,
+      "match": "PASS"
+    },
+    {
+      "form": "metal fp32 rms",
+      "backend": "metal",
+      "precision": "fp32",
+      "ms_per_token": 7.862,
+      "match": "PASS"
+    },
+    {
+      "form": "metal fp32 sdpa",
+      "backend": "metal",
+      "precision": "fp32",
+      "ms_per_token": 8.6,
+      "match": "PASS"
+    },
+    {
+      "form": "metal fp32 rms+sdpa",
+      "backend": "metal",
+      "precision": "fp32",
+      "ms_per_token": 8.298,
+      "match": "PASS"
+    },
+    {
+      "form": "metal fp16 raw",
+      "backend": "metal",
+      "precision": "fp16",
+      "ms_per_token": 5.762,
+      "match": "FAIL"
+    },
+    {
+      "form": "metal int8",
+      "backend": "metal",
+      "precision": "int8",
+      "ms_per_token": 5.875,
+      "match": "PASS"
+    },
+    {
+      "form": "metal int8 + lm_head int8",
+      "backend": "metal",
+      "precision": "int8",
+      "ms_per_token": 4.724,
+      "match": "PASS"
+    }
+  ]
+}

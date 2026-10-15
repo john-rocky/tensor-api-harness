@@ -89,3 +89,70 @@ DYLD_LIBRARY_PATH=<LiteRT checkout>/bazel-bin/tensor/examples/qwen3-0.6b/qwen3_m
   (and p1, p2; the Metal chain uses the same manifests).
 - Rows 9 to 11: the Metal block dumps use the iteration 1 manifests unchanged
   (`reference/manifest_p*.json`).
+
+## Iteration 3 (rows 8, 12, 13; row 10 final-norm export form)
+
+Same LiteRT commit, toolchain, machine, Python environments, weights and Metal dylib (same sha256)
+as above. No phone.
+
+- New flags of `qwen3_main` (each default gives the iteration 2 graph; a CPU run with the defaults
+  was checked byte-identical to the iteration 1 and 2 dumps on every build of this iteration):
+  `--norms=raw|composite`, `--attention=raw|sdpa`, `--weights_quant=none|int8|int4`,
+  `--weights_quant_lm_head`, `--gpu_allow_src_quantized_fc` (built, not used: Metal took every node of
+  the int8 graph without it), `--dump_final_norm_form=direct|identity`, `--time`, `--timing_out`,
+  `--form`.
+- Composites: `odml.rms_norm` with attribute `epsilon` (1e-6);
+  `odml.scaled_dot_product_attention` with attribute `scale` (1/√128) on the GQA pre-fold
+  (q `[8, 2·S, 1, 128]`, k/v `[8, 64, 1, 128]`, mask tiled to `[1, 1, 2·S, 64]`). In both composites
+  the decomposition is the raw math. The `odml.runtime_bmm` form was not built or run.
+- Weight quantization (in the loader, nearest integer with halves away from zero, symmetric, zero point 0), on the 196 decoder
+  matmul weights:
+  - int8: one scale per output channel, `scale = max|w| / 127`, codes `w / scale` to the nearest integer,
+    clamped to ±127 (`PerChannelAffineQuantization`, dimension 0).
+  - int4: one scale per block of 32 input elements, `scale = max|w| / 7`, rounded to fp16 before the
+    codes `w / scale` to the nearest integer, clamped to ±7, are taken (the runtime reads fp16 block scales); two codes
+    per byte, even index in the low nibble (`Type::kI4`, `BlockwiseQuantization`, block 32).
+  - The embedding table stays fp32 for the lookup. `--weights_quant_lm_head` adds an int8 per-channel
+    copy of it (same int8 formula) that only the lm_head reads.
+- Timing (`--time`): `std::chrono::steady_clock` around each `runner.Run` call only (prefill once per
+  prompt, then each of the 15 decode steps of a greedy-16 run). Input setup, the cache rebind and the
+  logits read are outside. Per form: the median over 15 steps per prompt, then the median of the three
+  prompt medians. The model is compiled once per prompt (prefill length = prompt length); the
+  delegation report is off in timed runs (`--delegation_report=false`), so there is one compile per
+  prompt. No separate warm-up call: the first decode call of each prompt is in the data (it is the
+  slowest; the median is not moved by it).
+- Timing windows: the machine has a lock that every measurement job takes. Timing ran only while this
+  iteration held it, with no build or match run inside: one window, 18:32:53–18:34:33 JST (100 s),
+  for every timed form. There was no second window. The 1-minute load average at the start of the
+  window was 10.43, with no other measurement running.
+- CPU threads: the runtime's default; the log does not print the XNNPACK thread count. The machine has
+  16 logical CPUs (12 performance, 4 efficiency; `sysctl hw.ncpu`, `hw.perflevel0.logicalcpu`,
+  `hw.perflevel1.logicalcpu`).
+- Commands (from `<LiteRT checkout>`; GPU runs add the `DYLD_LIBRARY_PATH` of iteration 2 and
+  `--accelerator=gpu --gpu_precision=fp32 --gpu_buffer_storage=buffer`):
+
+```
+# a form's match run (greedy 16 + chain), e.g. Metal fp32 with int8 weights
+bazel-bin/tensor/examples/qwen3-0.6b/qwen3_main --weights=<HF cache>/.../model.safetensors \
+  --ids_file=<dump dir>/ref/ids_all.txt --greedy=16 --dump_chain --dump_dir=<dump dir>/metal_int8 \
+  --out_ids=<dump dir>/metal_int8/ids.json --weights_quant=int8 --accelerator=gpu \
+  --gpu_precision=fp32 --gpu_buffer_storage=buffer --tflite_path=<tmp>/qwen3.tflite
+python3 checks/text_match.py --got <dump dir>/metal_int8/ids.json --ref models/qwen3-0.6b/reference/ref_ids.json
+
+# a form's timed run (inside the measurement window)
+bazel-bin/tensor/examples/qwen3-0.6b/qwen3_main --weights=<HF cache>/.../model.safetensors \
+  --ids_file=<dump dir>/ref/ids_all.txt --greedy=16 --out_ids=<dump dir>/time_ids.json \
+  --time --timing_out=<dump dir>/time_metal_int8.json --delegation_report=false \
+  --form="metal int8" --weights_quant=int8 --accelerator=gpu --gpu_precision=fp32 \
+  --gpu_buffer_storage=buffer --tflite_path=<tmp>/qwen3.tflite
+python3 checks/speed_floor.py --timing models/qwen3-0.6b/results/timing.json
+
+# row 10: final_norm export with the identity form
+bazel-bin/tensor/examples/qwen3-0.6b/qwen3_main ... --dump_blocks --dump_final_norm_form=identity \
+  --dump_dir=<dump dir>/metal_identity --accelerator=gpu --gpu_precision=fp32 --gpu_buffer_storage=buffer
+```
+
+- `results/timing.json` is assembled from the per-form timing files (one per form, written by
+  `--timing_out`): floor = the "cpu fp32 raw" form, `ms_per_token` = the median of the prompt medians,
+  `match` = PASS when at least 44 of the 48 generated ids equal the reference before each prompt's
+  first mismatch.

@@ -1,0 +1,4 @@
+p0 first mismatch at 7: got 3555 ref 576
+p1 first mismatch at 6: got 264 ref 421
+p2 first mismatch at 20: got 2130 ref 58461
+TEXT MATCH FAIL: 3 prompts

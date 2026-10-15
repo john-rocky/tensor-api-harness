@@ -27,8 +27,21 @@
 // next call's input (a diagnostic); the default, handle, passes the output
 // handle to SetInput, which binds a duplicate of the output TensorBuffer
 // without copying its contents.
+// Graph forms (defaults = the raw-op fp32 graph): --norms=composite emits
+// every RMSNorm as odml.rms_norm; --attention=sdpa emits the attention core
+// as odml.scaled_dot_product_attention over the GQA pre-fold;
+// --weights_quant=int8|int4 quantizes the decoder matmul weights while
+// loading (see qwen3_weights.h); --weights_quant_lm_head adds an int8 copy of
+// the embedding table for the lm_head.
+// --dump_final_norm_form=identity (with --dump_blocks) feeds the lm_head from
+// Mul(final_norm, 1.0) so the exported final_norm is not its direct input.
+// --time measures each runner.Run call with steady_clock (prefill, and each
+// decode step); setting inputs, the rebind and reading the logits are outside
+// the timed interval. It prints each prompt's decode median and the median of
+// those medians, and --timing_out writes every value as JSON.
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -90,6 +103,29 @@ ABSL_FLAG(std::string, log_level, "",
           "the runtime default)");
 ABSL_FLAG(std::string, rebind, "handle",
           "handle|copy: how cache outputs become the next call's inputs");
+ABSL_FLAG(std::string, norms, "raw",
+          "raw|composite: RMSNorm as raw ops or as the odml.rms_norm composite");
+ABSL_FLAG(std::string, attention, "raw",
+          "raw|sdpa: the attention core as raw ops or as the "
+          "odml.scaled_dot_product_attention composite (GQA pre-folded)");
+ABSL_FLAG(std::string, weights_quant, "none",
+          "none|int8|int4: nearest-integer quantization of the 196 decoder "
+          "matmul weights while loading (int8 per channel, int4 blockwise-32)");
+ABSL_FLAG(bool, weights_quant_lm_head, false,
+          "Add an int8 per-channel copy of the embedding table for the lm_head "
+          "(the lookup keeps the fp32 table)");
+ABSL_FLAG(bool, gpu_allow_src_quantized_fc, false,
+          "GPU: quantize the input of large FullyConnected ops to 8 bit "
+          "(EnableAllowSrcQuantizedFcConvOps, with constant tensor sharing)");
+ABSL_FLAG(std::string, dump_final_norm_form, "direct",
+          "direct|identity (--dump_blocks only): identity feeds the lm_head "
+          "from Mul(final_norm, 1.0), so the exported final_norm is not the "
+          "FullyConnected input");
+ABSL_FLAG(bool, time, false,
+          "Time each runner.Run call (prefill and every decode step)");
+ABSL_FLAG(std::string, timing_out, "",
+          "Where to write the timing JSON (--time)");
+ABSL_FLAG(std::string, form, "", "Form name written into the timing JSON");
 
 namespace {
 
@@ -212,8 +248,15 @@ absl::StatusOr<::litert::Options> MakeOptions() {
         return absl::InvalidArgumentError(
             "--gpu_buffer_storage must be default|buffer|texture2d");
       }
+      const bool src_quantized =
+          absl::GetFlag(FLAGS_gpu_allow_src_quantized_fc);
+      if (src_quantized) {
+        gpu_options->EnableConstantTensorSharing(true);
+        gpu_options->EnableAllowSrcQuantizedFcConvOps(true);
+      }
       std::cout << "gpu precision: " << precision << ", storage: " << storage
-                << std::endl;
+                << ", allow_src_quantized_fc: "
+                << (src_quantized ? "true" : "false") << std::endl;
     }
   }
   return std::move(*options);
@@ -266,11 +309,26 @@ absl::Status PrintDelegationReport(::litert::Environment& env,
   return absl::OkStatus();
 }
 
+// Wall time of each runner.Run call (steady_clock). Setting inputs, the cache
+// rebind and reading the logits happen outside the timed interval.
+struct PromptTiming {
+  double prefill_ms = 0.0;
+  std::vector<double> decode_ms;
+};
+
+double Median(std::vector<double> v) {
+  if (v.empty()) return 0.0;
+  std::sort(v.begin(), v.end());
+  const size_t n = v.size();
+  return n % 2 ? v[n / 2] : 0.5 * (v[n / 2 - 1] + v[n / 2]);
+}
+
 // Builds both signatures for one prompt length, runs prefill (+ dumps) and
 // the greedy loop. Appends the generated ids to `generated`.
 absl::Status RunPrompt(::litert::Environment& env, qwen3::Qwen3Config config,
                        const qwen3::WeightMap& weights, const Prompt& prompt,
-                       int greedy, std::vector<int32_t>& generated) {
+                       int greedy, std::vector<int32_t>& generated,
+                       PromptTiming& timing) {
   const int seq = static_cast<int>(prompt.ids.size());
   config.prefill_len = seq;
   if (seq + greedy > config.max_seq) {
@@ -395,8 +453,12 @@ absl::Status RunPrompt(::litert::Environment& env, qwen3::Qwen3Config config,
       if (!st.ok()) return st;
     }
   }
+  auto t0 = std::chrono::steady_clock::now();
   st = runner.Run("prefill");
+  auto t1 = std::chrono::steady_clock::now();
   if (!st.ok()) return st;
+  timing.prefill_ms =
+      std::chrono::duration<double, std::milli>(t1 - t0).count();
   st = print_outputs("prefill", prefill_out.AsList());
   if (!st.ok()) return st;
 
@@ -478,8 +540,12 @@ absl::Status RunPrompt(::litert::Environment& env, qwen3::Qwen3Config config,
     const int pos = seq + step - 1;
     st = set_step("decode", {tok}, pos);
     if (!st.ok()) return st;
+    t0 = std::chrono::steady_clock::now();
     st = runner.Run("decode");
+    t1 = std::chrono::steady_clock::now();
     if (!st.ok()) return st;
+    timing.decode_ms.push_back(
+        std::chrono::duration<double, std::milli>(t1 - t0).count());
     if (step == 1) {
       st = print_outputs("decode", decode_out.AsList());
       if (!st.ok()) return st;
@@ -522,6 +588,55 @@ absl::Status Run() {
   if (rebind != "handle" && rebind != "copy") {
     return absl::InvalidArgumentError("--rebind must be handle|copy");
   }
+  const std::string norms = absl::GetFlag(FLAGS_norms);
+  if (norms != "raw" && norms != "composite") {
+    return absl::InvalidArgumentError("--norms must be raw|composite");
+  }
+  config.rms_norm_composite = norms == "composite";
+  const std::string attention = absl::GetFlag(FLAGS_attention);
+  if (attention != "raw" && attention != "sdpa") {
+    return absl::InvalidArgumentError("--attention must be raw|sdpa");
+  }
+  config.sdpa_attention = attention == "sdpa";
+  const std::string quant = absl::GetFlag(FLAGS_weights_quant);
+  qwen3::WeightQuantMode quant_mode;
+  if (quant == "none") {
+    quant_mode = qwen3::WeightQuantMode::kNone;
+  } else if (quant == "int8") {
+    quant_mode = qwen3::WeightQuantMode::kInt8;
+  } else if (quant == "int4") {
+    quant_mode = qwen3::WeightQuantMode::kInt4;
+  } else {
+    return absl::InvalidArgumentError("--weights_quant must be none|int8|int4");
+  }
+  config.separate_lm_head = absl::GetFlag(FLAGS_weights_quant_lm_head);
+  const std::string final_norm_form = absl::GetFlag(FLAGS_dump_final_norm_form);
+  if (final_norm_form != "direct" && final_norm_form != "identity") {
+    return absl::InvalidArgumentError(
+        "--dump_final_norm_form must be direct|identity");
+  }
+  config.dump_final_norm_identity = final_norm_form == "identity";
+  const bool time_runs = absl::GetFlag(FLAGS_time);
+  if (!absl::GetFlag(FLAGS_timing_out).empty() && !time_runs) {
+    return absl::InvalidArgumentError("--timing_out needs --time");
+  }
+  const bool use_gpu = absl::GetFlag(FLAGS_accelerator) == "gpu";
+  const std::string backend = use_gpu ? "metal" : "cpu";
+  const std::string precision =
+      quant != "none" ? quant
+                      : (use_gpu ? absl::GetFlag(FLAGS_gpu_precision) : "fp32");
+  std::string form = absl::GetFlag(FLAGS_form);
+  if (form.empty()) {
+    form = absl::StrCat(backend, " ", precision, " attention=", attention,
+                        " norms=", norms);
+  }
+  std::cout << "form: " << form << " (attention " << attention << ", norms "
+            << norms << ", weights_quant " << quant << ", lm_head "
+            << (config.separate_lm_head ? "int8 copy" : "tied fp32 table")
+            << (config.dump_blocks
+                    ? absl::StrCat(", final_norm dump ", final_norm_form)
+                    : std::string())
+            << ")" << std::endl;
   std::vector<::litert::EnvironmentOptions::Option> env_options;
   const std::string log_level = absl::GetFlag(FLAGS_log_level);
   if (!log_level.empty()) {
@@ -549,17 +664,36 @@ absl::Status Run() {
   qwen3::WeightMap weights;
   const std::string weights_path = absl::GetFlag(FLAGS_weights);
   if (weights_path.empty()) {
+    if (quant_mode != qwen3::WeightQuantMode::kNone ||
+        config.separate_lm_head) {
+      return absl::InvalidArgumentError(
+          "--weights_quant and --weights_quant_lm_head need --weights");
+    }
     weights = qwen3::MakeSyntheticWeights(config, /*seed=*/42);
     std::cout << "weights: synthetic (seed 42), " << weights.size()
               << " tensors" << std::endl;
   } else {
-    auto weights_or = qwen3::LoadCheckpointWeights(config, weights_path);
+    qwen3::QuantStats stats;
+    auto weights_or = qwen3::LoadCheckpointWeights(
+        config, weights_path, quant_mode, config.separate_lm_head, &stats);
     if (!weights_or.ok()) return weights_or.status();
     weights = std::move(*weights_or);
     std::cout << "weights: " << weights_path << " (" << weights.size()
-              << " tensors, bf16->fp32, lm_head tied to "
-                 "model.embed_tokens.weight)"
-              << std::endl;
+              << " tensors, bf16->fp32, lm_head "
+              << (config.separate_lm_head
+                      ? "an int8 copy of model.embed_tokens.weight"
+                      : "tied to model.embed_tokens.weight")
+              << ")" << std::endl;
+    if (quant_mode != qwen3::WeightQuantMode::kNone) {
+      std::cout << "weights_quant " << quant << ": " << stats.quantized_tensors
+                << " tensors, fp32 " << stats.fp32_bytes << " bytes -> "
+                << stats.quantized_bytes << " bytes (codes + scales)"
+                << std::endl;
+    }
+    if (config.separate_lm_head) {
+      std::cout << "lm_head int8 copy: " << stats.lm_head_bytes
+                << " bytes (codes + scales)" << std::endl;
+    }
   }
 
   auto env = ::litert::Environment::Create(
@@ -569,22 +703,60 @@ absl::Status Run() {
   std::ostringstream json;
   json << "{\"prompts\": [";
   bool first = true;
+  std::ostringstream timing_json;
+  timing_json << "{\"form\": \"" << form << "\", \"backend\": \"" << backend
+              << "\", \"precision\": \"" << precision
+              << "\", \"attention\": \"" << attention << "\", \"norms\": \""
+              << norms << "\", \"weights_quant\": \"" << quant
+              << "\", \"lm_head\": \""
+              << (config.separate_lm_head ? "int8" : "fp32")
+              << "\", \"prompts\": [";
+  std::vector<double> prompt_medians;
   for (const Prompt& prompt : *prompts_or) {
     std::vector<int32_t> generated;
-    auto st = RunPrompt(*env, config, weights, prompt, greedy, generated);
+    PromptTiming timing;
+    auto st =
+        RunPrompt(*env, config, weights, prompt, greedy, generated, timing);
     if (!st.ok()) return st;
     std::vector<int32_t> all = prompt.ids;
     all.insert(all.end(), generated.begin(), generated.end());
     json << (first ? "" : ", ") << "{\"id\": \"" << prompt.id
          << "\", \"ids\": [" << absl::StrJoin(all, ", ") << "]}";
+    if (time_runs) {
+      const double median = Median(timing.decode_ms);
+      prompt_medians.push_back(median);
+      std::vector<std::string> decode;
+      for (double ms : timing.decode_ms) decode.push_back(absl::StrCat(ms));
+      timing_json << (first ? "" : ", ") << "{\"id\": \"" << prompt.id
+                  << "\", \"S\": " << prompt.ids.size()
+                  << ", \"prefill_ms\": " << timing.prefill_ms
+                  << ", \"decode_ms\": [" << absl::StrJoin(decode, ", ")
+                  << "]}";
+      std::cout << prompt.id << " time: prefill (S " << prompt.ids.size()
+                << ") " << timing.prefill_ms << " ms, decode median "
+                << median << " ms/token over " << timing.decode_ms.size()
+                << " steps" << std::endl;
+    }
     first = false;
   }
   json << "]}\n";
+  timing_json << "]}\n";
   if (greedy > 0) {
     std::ofstream out(absl::GetFlag(FLAGS_out_ids));
     if (!out) return absl::InternalError("cannot write --out_ids");
     out << json.str();
     std::cout << "wrote " << absl::GetFlag(FLAGS_out_ids) << std::endl;
+  }
+  if (time_runs) {
+    std::cout << "time: " << form << " decode " << Median(prompt_medians)
+              << " ms/token (median of the per-prompt medians)" << std::endl;
+    const std::string timing_out = absl::GetFlag(FLAGS_timing_out);
+    if (!timing_out.empty()) {
+      std::ofstream out(timing_out);
+      if (!out) return absl::InternalError("cannot write --timing_out");
+      out << timing_json.str();
+      std::cout << "wrote " << timing_out << std::endl;
+    }
   }
   return absl::OkStatus();
 }

@@ -1,0 +1,17 @@
+form                       backend    precision    ms/token  match
+metal int8 + lm_head int8  metal      int8             4.72  PASS
+metal fp16 raw             metal      fp16             5.76  FAIL
+metal int8                 metal      int8             5.88  PASS
+cpu int8 + lm_head int8    cpu        int8             6.05  PASS
+metal fp32 rms             metal      fp32             7.86  PASS
+metal fp32 raw             metal      fp32             8.06  PASS
+metal fp32 rms+sdpa        metal      fp32             8.30  PASS
+cpu int4 + lm_head int8    cpu        int4             8.32  FAIL
+metal fp32 sdpa            metal      fp32             8.60  PASS
+cpu int8                   cpu        int8             9.23  FAIL
+cpu int4                   cpu        int4            11.39  FAIL
+cpu fp32 rms               cpu        fp32            18.10  PASS
+cpu fp32 raw               cpu        fp32            18.12  PASS
+fastest passing: metal int8 + lm_head int8 4.724 ms/token (floor 18.12)
+SPEED FLOOR PASS: metal int8 + lm_head int8 4.724 ms/token < floor cpu fp32 raw 18.12 ms/token
+exit code: 0
