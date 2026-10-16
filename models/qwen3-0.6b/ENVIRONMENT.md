@@ -156,3 +156,70 @@ bazel-bin/tensor/examples/qwen3-0.6b/qwen3_main ... --dump_blocks --dump_final_n
   `--timing_out`): floor = the "cpu fp32 raw" form, `ms_per_token` = the median of the prompt medians,
   `match` = PASS when at least 44 of the 48 generated ids equal the reference before each prompt's
   first mismatch.
+
+## Iteration 4 (row 14: Galaxy S26, CPU and OpenCL)
+
+Same LiteRT commit, Mac toolchain, machine, Python environments and weights as above.
+
+- New flags of `qwen3_main` (each default gives the iteration 2 graph and run):
+  - `--prefill_len=N` (default 0 = one model per prompt at the prompt length): one model for all
+    prompts with a prefill signature of length N. Each prompt is padded on the right with id 0; the
+    logits at the last prompt position give the first generated id; decode starts right after the
+    prompt. The pad rows written into the caches stay behind the causal mask until decode overwrites
+    them. One runner serves the three prompts.
+  - `--serialize_only` (with `--prefill_len`): build and save the model, then exit.
+  - `--load_tflite=<path>` (with the `--prefill_len` the file was saved with): run a saved model; no
+    graph is built and no weights are read. `--weights_quant` and `--weights_quant_lm_head` only
+    label the form in the timing file.
+- Padded form on the Mac CPU (`--prefill_len=32`, fp32): the KV chain passes 16/16 for each prompt
+  and the text match 3/3; the 48 chain rows and the ids are byte-identical to the iteration 2 CPU
+  chain (prefill length = prompt length).
+- Saved form: `--load_tflite` of the saved fp32 file gives the same ids and byte-identical chain rows
+  (48/48) as the run that built the same graph in-process.
+- Phone files (`--serialize_only --prefill_len=32`; sizes in bytes): fp32 2,384,789,652; int8 decoder
+  weights + int8 lm_head copy (`--weights_quant=int8 --weights_quant_lm_head`) 1,231,082,068; int4
+  blockwise-32 decoder weights + int8 lm_head copy (`--weights_quant=int4 --weights_quant_lm_head`)
+  1,057,719,764. The sizes equal those of iteration 3's files.
+- Android NDK r28 (28.2.13676358), API level 26 (the checkout's `android_ndk_repository`), from
+  `<LiteRT checkout>`:
+
+```
+ANDROID_NDK_HOME=<Android SDK>/ndk/28.2.13676358 \
+  bazel build -c opt --config=android_arm64 //tensor/examples/qwen3-0.6b:qwen3_main
+```
+
+  `qwen3_main`: ELF 64-bit aarch64 PIE, 18,071,424 bytes, LiteRT linked statically, sha256
+  `3bf835a252f06d7ab0417f0f0caa2b752e683f971d4e5674ccbd6aed1c68e7eb`.
+  OpenCL/GL accelerator: the prebuilt `libLiteRtClGlAccelerator.so` from the runfiles
+  (`litert_prebuilts/android_arm64/`, the same `latest` archive as the Metal dylib; not pinned by the
+  commit), 3,304,024 bytes, sha256
+  `6ec1f5d515960dba1d022df8f966b34a1bfed44cc3981ca8aaa5de921f6d2d34`.
+- Phone: Galaxy S26 (SM-S942U1), a lab unit reached through Google's Developer Device Platform (no
+  adb). Android 16, build `BP4A.251205.006.S942U1UEU1AZAD`, SoC SM8850, MemTotal 11,389,764 kB.
+- Route: one session, one job, execution timeout 2,400 s.
+  - The session pushed five files flat into `/data/local/tmp/`: the binary, the accelerator `.so`,
+    the prompt ids, and the fp32 and int8 + int8 lm_head files.
+  - The job's binary was a `/system/bin/sh` script (mksh). It does the following:
+    - marks `qwen3_main` executable;
+    - records the identity, memory, thermal zones, CPU frequency ceilings, uptime and the sha256 of
+      the pushed files;
+    - runs the forms one after another, each under `timeout -k 10 <s>`, with the time cut to what is
+      left of a 2,100 s budget;
+    - applies the GPU memory rule;
+    - writes each run's log, exit code, ids, timing JSON and chain dumps into one output directory,
+      which the session pulled.
+  - Each run's command, from `/data/local/tmp`:
+
+```
+LD_LIBRARY_PATH=/data/local/tmp timeout -k 10 480 ./qwen3_main \
+  --load_tflite=/data/local/tmp/r3_<form>.tflite --prefill_len=32 \
+  --ids_file=/data/local/tmp/ids_all.txt --greedy=16 --dump_chain --dump_dir=<out>/got_<form> \
+  --out_ids=<out>/<form>_ids.json --time --timing_out=<out>/<form>_time.json \
+  --delegation_report=true --accelerator=cpu [--weights_quant=int8 --weights_quant_lm_head] \
+  --form="<form name>"
+```
+
+  - A GPU form would add `--accelerator=gpu --gpu_precision=fp32 --gpu_buffer_storage=buffer`. It
+    runs only when MemAvailable (the lower of the job start's value and the current one) is at least
+    six times the file size in kB (`du -k`) plus 1,048,576 kB.
+  - Pulled outputs were checked on the Mac with the same `checks/` scripts and reference as above.

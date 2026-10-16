@@ -1,0 +1,22 @@
+{
+  "floor": {
+    "form": "cpu fp32",
+    "ms_per_token": 39.468
+  },
+  "forms": [
+    {
+      "form": "cpu fp32",
+      "backend": "cpu",
+      "precision": "fp32",
+      "ms_per_token": 39.468,
+      "match": "PASS"
+    },
+    {
+      "form": "cpu int8 + lm_head int8",
+      "backend": "cpu",
+      "precision": "int8",
+      "ms_per_token": 11.665,
+      "match": "PASS"
+    }
+  ]
+}

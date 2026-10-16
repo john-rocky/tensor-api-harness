@@ -39,6 +39,14 @@
 // decode step); setting inputs, the rebind and reading the logits are outside
 // the timed interval. It prints each prompt's decode median and the median of
 // those medians, and --timing_out writes every value as JSON.
+// --prefill_len=N (N > 0) builds one model for all prompts with a prefill
+// signature of length N: each prompt is padded on the right with id 0, the
+// logits at the last prompt position are used and decode starts right after
+// the prompt. The pad rows written into the caches stay behind the causal
+// mask until decode overwrites them. --serialize_only (with --prefill_len)
+// builds and saves the model and exits; --load_tflite=<path> (with the
+// --prefill_len the file was saved with) runs a saved model without building
+// a graph or reading weights.
 
 #include <algorithm>
 #include <chrono>
@@ -49,6 +57,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -126,6 +135,15 @@ ABSL_FLAG(bool, time, false,
 ABSL_FLAG(std::string, timing_out, "",
           "Where to write the timing JSON (--time)");
 ABSL_FLAG(std::string, form, "", "Form name written into the timing JSON");
+ABSL_FLAG(int, prefill_len, 0,
+          "Fixed prefill length for every prompt, prompts padded on the right "
+          "with id 0 (0 = one model per prompt at the prompt length)");
+ABSL_FLAG(bool, serialize_only, false,
+          "Build and save the model to --tflite_path, then exit (needs "
+          "--prefill_len)");
+ABSL_FLAG(std::string, load_tflite, "",
+          "Run this saved model instead of building one (needs the "
+          "--prefill_len it was saved with; no weights are read)");
 
 namespace {
 
@@ -137,6 +155,14 @@ using ::litert::tensor::Type;
 namespace qwen3 = ::litert::tensor::examples::qwen3;
 
 constexpr float kMaskFloor = -30000.0f;  // fp16-safe
+constexpr int32_t kPadId = 0;            // --prefill_len padding
+
+// The GPU accelerator this binary loads, for the form label.
+#if defined(__ANDROID__)
+constexpr char kGpuBackend[] = "opencl";
+#else
+constexpr char kGpuBackend[] = "metal";
+#endif
 
 struct Prompt {
   std::string id;
@@ -323,21 +349,12 @@ double Median(std::vector<double> v) {
   return n % 2 ? v[n / 2] : 0.5 * (v[n / 2 - 1] + v[n / 2]);
 }
 
-// Builds both signatures for one prompt length, runs prefill (+ dumps) and
-// the greedy loop. Appends the generated ids to `generated`.
-absl::Status RunPrompt(::litert::Environment& env, qwen3::Qwen3Config config,
-                       const qwen3::WeightMap& weights, const Prompt& prompt,
-                       int greedy, std::vector<int32_t>& generated,
-                       PromptTiming& timing) {
-  const int seq = static_cast<int>(prompt.ids.size());
-  config.prefill_len = seq;
-  if (seq + greedy > config.max_seq) {
-    return absl::InvalidArgumentError(absl::StrCat(
-        prompt.id, ": prompt ", seq, " + greedy ", greedy, " > max_seq ",
-        config.max_seq));
-  }
-  const std::string tflite_path = absl::GetFlag(FLAGS_tflite_path);
-
+// Builds the prefill (length config.prefill_len) and decode signatures and
+// saves them to `tflite_path`.
+absl::Status BuildAndSave(const qwen3::Qwen3Config& config,
+                          const qwen3::WeightMap& weights,
+                          const std::string& tflite_path,
+                          const std::string& label) {
   qwen3::Qwen3Inputs prefill_in = qwen3::MakeQwen3Inputs(config, false);
   qwen3::Qwen3Outputs prefill_out =
       qwen3::BuildQwen3(config, prefill_in, weights, false);
@@ -366,20 +383,77 @@ absl::Status RunPrompt(::litert::Environment& env, qwen3::Qwen3Config config,
   if (!save_status.ok()) return save_status;
   std::error_code ec;
   auto tflite_bytes = std::filesystem::file_size(tflite_path, ec);
-  std::cout << prompt.id << ": serialized " << tflite_path << " ("
-            << (ec ? 0 : tflite_bytes) << " bytes), prefill_len " << seq
-            << ", max_seq " << config.max_seq << std::endl;
+  std::cout << label << ": serialized " << tflite_path << " ("
+            << (ec ? 0 : tflite_bytes) << " bytes), prefill_len "
+            << config.prefill_len << ", max_seq " << config.max_seq
+            << std::endl;
+  return absl::OkStatus();
+}
 
+// Prints the delegation report (when asked) and creates the runner.
+absl::StatusOr<LitertDynamicRunner> MakeRunner(::litert::Environment& env,
+                                               const std::string& tflite_path,
+                                               const std::string& label) {
   if (absl::GetFlag(FLAGS_delegation_report)) {
-    auto report_status = PrintDelegationReport(env, tflite_path, prompt.id);
+    auto report_status = PrintDelegationReport(env, tflite_path, label);
     if (!report_status.ok()) return report_status;
   }
   auto options_or = MakeOptions();
   if (!options_or.ok()) return options_or.status();
   auto runner_or = LitertDynamicRunner::Create(env, tflite_path, *options_or);
   if (!runner_or.ok()) return runner_or.status();
-  auto runner = std::move(*runner_or);
-  std::cout << prompt.id << ": runner created" << std::endl;
+  std::cout << label << ": runner created" << std::endl;
+  return runner_or;
+}
+
+struct OutputSpec {
+  std::string name;
+  std::vector<int> shape;
+};
+
+// The dumped tensors of the prefill signature (--dump_blocks), in output
+// order; the names BuildQwen3 gives them.
+std::vector<std::string> DumpNames(const qwen3::Qwen3Config& config) {
+  std::vector<std::string> names = {"emb"};
+  for (int i = 0; i < config.n_layers; ++i) {
+    names.push_back(absl::StrCat("block_", i < 10 ? "0" : "", i));
+  }
+  names.push_back("final_norm");
+  return names;
+}
+
+// The outputs whose element counts are checked after a signature's first
+// call: the logits, the first layer's caches and (prefill with
+// --dump_blocks) the dumps, with the shapes the graph gives them.
+std::vector<OutputSpec> CheckedOutputs(const qwen3::Qwen3Config& config,
+                                       int seq, bool is_decode) {
+  const std::vector<int> cache = {1, config.n_kv_groups, config.max_seq,
+                                  config.head_dim};
+  std::vector<OutputSpec> specs = {
+      {"logits", {1, seq, config.vocab_size}},
+      {"key_cache_0_new", cache},
+      {"value_cache_0_new", cache}};
+  if (config.dump_blocks && !is_decode) {
+    for (const std::string& name : DumpNames(config)) {
+      specs.push_back({name, {1, seq, config.emb_dim}});
+    }
+  }
+  return specs;
+}
+
+// Runs prefill (+ dumps) and the greedy loop for one prompt on a runner whose
+// prefill signature has length config.prefill_len (at least the prompt
+// length; the prompt is padded on the right with kPadId). Appends the
+// generated ids to `generated`.
+absl::Status RunPrompt(LitertDynamicRunner& runner,
+                       const qwen3::Qwen3Config& config, const Prompt& prompt,
+                       int greedy, std::vector<int32_t>& generated,
+                       PromptTiming& timing) {
+  std::error_code ec;
+  const int len = static_cast<int>(prompt.ids.size());
+  const int seq = config.prefill_len;
+  std::vector<int32_t> prefill_ids = prompt.ids;
+  prefill_ids.resize(seq, kPadId);
 
   const int hd = config.head_dim;
   const int vocab = config.vocab_size;
@@ -410,35 +484,27 @@ absl::Status RunPrompt(::litert::Environment& env, qwen3::Qwen3Config config,
                                   BuildMask(n, pos, config.max_seq)));
   };
   auto print_outputs = [&](const std::string& sig,
-                           const std::vector<qwen3::TfTensor>& outs)
+                           const std::vector<OutputSpec>& outs)
       -> absl::Status {
     // The graph shape next to the element count the runtime returned.
-    for (const auto& t : outs) {
-      std::string name(t.GetName());
-      if (name.rfind("key_cache_", 0) == 0 && name != "key_cache_0_new") {
-        continue;
-      }
-      if (name.rfind("value_cache_", 0) == 0 && name != "value_cache_0_new") {
-        continue;
-      }
+    for (const OutputSpec& out : outs) {
       std::vector<float> v;
-      auto st = ReadFloats(runner, sig, name, v);
+      auto st = ReadFloats(runner, sig, out.name, v);
       if (!st.ok()) return st;
-      std::vector<int> shape(t.GetShape().begin(), t.GetShape().end());
       size_t expect = 1;
-      for (int d : shape) expect *= static_cast<size_t>(d);
-      std::cout << prompt.id << " " << sig << " output " << name << " "
-                << ShapeStr(shape) << " elements " << v.size()
+      for (int d : out.shape) expect *= static_cast<size_t>(d);
+      std::cout << prompt.id << " " << sig << " output " << out.name << " "
+                << ShapeStr(out.shape) << " elements " << v.size()
                 << (v.size() == expect ? "" : " SHAPE MISMATCH") << std::endl;
       if (v.size() != expect) {
-        return absl::InternalError("output size mismatch: " + name);
+        return absl::InternalError("output size mismatch: " + out.name);
       }
     }
     return absl::OkStatus();
   };
 
   // --- Prefill ---
-  auto st = set_step("prefill", prompt.ids, 0);
+  auto st = set_step("prefill", prefill_ids, 0);
   if (!st.ok()) return st;
   const size_t cache_n =
       static_cast<size_t>(config.n_kv_groups) * config.max_seq * hd;
@@ -459,35 +525,38 @@ absl::Status RunPrompt(::litert::Environment& env, qwen3::Qwen3Config config,
   if (!st.ok()) return st;
   timing.prefill_ms =
       std::chrono::duration<double, std::milli>(t1 - t0).count();
-  st = print_outputs("prefill", prefill_out.AsList());
+  st = print_outputs("prefill", CheckedOutputs(config, seq, false));
   if (!st.ok()) return st;
 
   std::vector<float> logits;
   st = ReadFloats(runner, "prefill", "logits", logits);
   if (!st.ok()) return st;
-  const float* last = logits.data() + static_cast<size_t>(seq - 1) * vocab;
+  const float* last = logits.data() + static_cast<size_t>(len - 1) * vocab;
 
   if (config.dump_blocks) {
     const std::string dir =
         absl::StrCat(absl::GetFlag(FLAGS_dump_dir), "/", prompt.id);
     std::filesystem::create_directories(dir, ec);
-    for (const auto& t : prefill_out.dumps) {
+    const std::vector<std::string> names = DumpNames(config);
+    for (const std::string& name : names) {
       std::vector<float> v;
-      st = ReadFloats(runner, "prefill", std::string(t.GetName()), v);
+      st = ReadFloats(runner, "prefill", name, v);
       if (!st.ok()) return st;
-      st = WriteRaw(absl::StrCat(dir, "/", t.GetName(), ".f32"), v);
+      // [1, seq, emb_dim]: keep the prompt rows, drop the pad rows.
+      v.resize(static_cast<size_t>(len) * config.emb_dim);
+      st = WriteRaw(absl::StrCat(dir, "/", name, ".f32"), v);
       if (!st.ok()) return st;
     }
     st = WriteRaw(dir + "/logits_last.f32", std::vector<float>(last, last + vocab));
     if (!st.ok()) return st;
     std::ofstream am(dir + "/argmax.json");
     am << "{\"argmax\": [";
-    for (int s = 0; s < seq; ++s) {
+    for (int s = 0; s < len; ++s) {
       am << (s ? ", " : "")
          << ArgMaxRow(logits.data() + static_cast<size_t>(s) * vocab, vocab);
     }
     am << "]}\n";
-    std::cout << prompt.id << ": dumped " << prefill_out.dumps.size() + 1
+    std::cout << prompt.id << ": dumped " << names.size() + 1
               << " tensors to " << dir << std::endl;
   }
 
@@ -537,7 +606,7 @@ absl::Status RunPrompt(::litert::Environment& env, qwen3::Qwen3Config config,
   st = rebind("prefill");
   if (!st.ok()) return st;
   for (int step = 1; step < greedy; ++step) {
-    const int pos = seq + step - 1;
+    const int pos = len + step - 1;
     st = set_step("decode", {tok}, pos);
     if (!st.ok()) return st;
     t0 = std::chrono::steady_clock::now();
@@ -547,7 +616,7 @@ absl::Status RunPrompt(::litert::Environment& env, qwen3::Qwen3Config config,
     timing.decode_ms.push_back(
         std::chrono::duration<double, std::milli>(t1 - t0).count());
     if (step == 1) {
-      st = print_outputs("decode", decode_out.AsList());
+      st = print_outputs("decode", CheckedOutputs(config, 1, true));
       if (!st.ok()) return st;
     }
     st = ReadFloats(runner, "decode", "logits", logits);
@@ -620,8 +689,24 @@ absl::Status Run() {
   if (!absl::GetFlag(FLAGS_timing_out).empty() && !time_runs) {
     return absl::InvalidArgumentError("--timing_out needs --time");
   }
+  const int fixed_len = absl::GetFlag(FLAGS_prefill_len);
+  const bool serialize_only = absl::GetFlag(FLAGS_serialize_only);
+  const std::string load_path = absl::GetFlag(FLAGS_load_tflite);
+  if (fixed_len < 0 || fixed_len > config.max_seq) {
+    return absl::InvalidArgumentError("--prefill_len must be 0..max_seq");
+  }
+  if (serialize_only && (fixed_len == 0 || !load_path.empty())) {
+    return absl::InvalidArgumentError(
+        "--serialize_only needs --prefill_len and no --load_tflite");
+  }
+  if (!load_path.empty() &&
+      (fixed_len == 0 || !absl::GetFlag(FLAGS_weights).empty())) {
+    return absl::InvalidArgumentError(
+        "--load_tflite needs the --prefill_len the file was saved with and "
+        "no --weights");
+  }
   const bool use_gpu = absl::GetFlag(FLAGS_accelerator) == "gpu";
-  const std::string backend = use_gpu ? "metal" : "cpu";
+  const std::string backend = use_gpu ? kGpuBackend : "cpu";
   const std::string precision =
       quant != "none" ? quant
                       : (use_gpu ? absl::GetFlag(FLAGS_gpu_precision) : "fp32");
@@ -658,12 +743,31 @@ absl::Status Run() {
               << std::endl;
   }
   std::cout << "rebind: " << rebind << std::endl;
-  auto prompts_or = ReadIdsFile(absl::GetFlag(FLAGS_ids_file));
-  if (!prompts_or.ok()) return prompts_or.status();
+  std::vector<Prompt> prompts;
+  if (!serialize_only) {
+    auto prompts_or = ReadIdsFile(absl::GetFlag(FLAGS_ids_file));
+    if (!prompts_or.ok()) return prompts_or.status();
+    prompts = std::move(*prompts_or);
+  }
+  for (const Prompt& prompt : prompts) {
+    const int len = static_cast<int>(prompt.ids.size());
+    if (len + greedy > config.max_seq) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          prompt.id, ": prompt ", len, " + greedy ", greedy, " > max_seq ",
+          config.max_seq));
+    }
+    if (fixed_len > 0 && len > fixed_len) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          prompt.id, ": prompt ", len, " > --prefill_len ", fixed_len));
+    }
+  }
 
   qwen3::WeightMap weights;
   const std::string weights_path = absl::GetFlag(FLAGS_weights);
-  if (weights_path.empty()) {
+  if (!load_path.empty()) {
+    std::cout << "model: " << load_path << " (prefill_len " << fixed_len
+              << "; no graph built, no weights read)" << std::endl;
+  } else if (weights_path.empty()) {
     if (quant_mode != qwen3::WeightQuantMode::kNone ||
         config.separate_lm_head) {
       return absl::InvalidArgumentError(
@@ -696,9 +800,29 @@ absl::Status Run() {
     }
   }
 
+  const std::string tflite_path = absl::GetFlag(FLAGS_tflite_path);
+  std::string model_path = load_path;
+  if (fixed_len > 0) {
+    config.prefill_len = fixed_len;
+    if (model_path.empty()) {
+      auto st = BuildAndSave(config, weights, tflite_path, "all");
+      if (!st.ok()) return st;
+      weights.clear();
+      model_path = tflite_path;
+    }
+    if (serialize_only) return absl::OkStatus();
+  }
+
   auto env = ::litert::Environment::Create(
       ::litert::EnvironmentOptions(env_options));
   if (!env) return absl::InternalError("Environment::Create failed");
+  // --prefill_len: one runner for every prompt.
+  std::optional<LitertDynamicRunner> shared_runner;
+  if (fixed_len > 0) {
+    auto runner_or = MakeRunner(*env, model_path, "all");
+    if (!runner_or.ok()) return runner_or.status();
+    shared_runner.emplace(std::move(*runner_or));
+  }
 
   std::ostringstream json;
   json << "{\"prompts\": [";
@@ -712,11 +836,24 @@ absl::Status Run() {
               << (config.separate_lm_head ? "int8" : "fp32")
               << "\", \"prompts\": [";
   std::vector<double> prompt_medians;
-  for (const Prompt& prompt : *prompts_or) {
+  for (const Prompt& prompt : prompts) {
     std::vector<int32_t> generated;
     PromptTiming timing;
-    auto st =
-        RunPrompt(*env, config, weights, prompt, greedy, generated, timing);
+    absl::Status st;
+    if (shared_runner.has_value()) {
+      st = RunPrompt(*shared_runner, config, prompt, greedy, generated,
+                     timing);
+    } else {
+      // One model per prompt, prefill length = the prompt length.
+      qwen3::Qwen3Config prompt_config = config;
+      prompt_config.prefill_len = static_cast<int>(prompt.ids.size());
+      st = BuildAndSave(prompt_config, weights, tflite_path, prompt.id);
+      if (!st.ok()) return st;
+      auto runner_or = MakeRunner(*env, tflite_path, prompt.id);
+      if (!runner_or.ok()) return runner_or.status();
+      st = RunPrompt(*runner_or, prompt_config, prompt, greedy, generated,
+                     timing);
+    }
     if (!st.ok()) return st;
     std::vector<int32_t> all = prompt.ids;
     all.insert(all.end(), generated.begin(), generated.end());
@@ -729,6 +866,9 @@ absl::Status Run() {
       for (double ms : timing.decode_ms) decode.push_back(absl::StrCat(ms));
       timing_json << (first ? "" : ", ") << "{\"id\": \"" << prompt.id
                   << "\", \"S\": " << prompt.ids.size()
+                  << ", \"prefill_len\": "
+                  << (fixed_len > 0 ? fixed_len
+                                    : static_cast<int>(prompt.ids.size()))
                   << ", \"prefill_ms\": " << timing.prefill_ms
                   << ", \"decode_ms\": [" << absl::StrJoin(decode, ", ")
                   << "]}";

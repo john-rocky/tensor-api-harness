@@ -1,0 +1,6 @@
+form                     backend    precision    ms/token  match
+cpu int8 + lm_head int8  cpu        int8            11.66  PASS
+cpu fp32                 cpu        fp32            39.47  PASS
+fastest passing: cpu int8 + lm_head int8 11.665 ms/token (floor 39.468)
+SPEED FLOOR PASS: cpu int8 + lm_head int8 11.665 ms/token < floor cpu fp32 39.468 ms/token
+exit code: 0
