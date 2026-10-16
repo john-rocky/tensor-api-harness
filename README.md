@@ -98,17 +98,19 @@ cache written at a runtime position, the tied lm_head over the embedding table.
 | part | iteration 1 | 2 | 3 | 4 | total |
 |---|---|---|---|---|---|
 | coding and reading | 7 | 8 | 33 | 30 | 78 |
-| builds | 1 | 1 | 1 | 16 | 19 |
+| builds | 0 | 0 | 0 | 16 | 16 |
 | waiting for the machine (another measurement running) | 86 | 0 | 32 | 386 | 504 |
 | waiting for a decision or for the phone | 0 | 0 | 0 | 1137 | 1137 |
 | runs and checks | 1 | 3 | 5 | 3 | 12 |
 | rework after a failure | 0 | 0 | 130 | 17 | 147 |
 | phone in use | 0 | 0 | 0 | 2 | 2 |
 
-  Wall-clock from the first iteration's start to the fourth's close: 31 h 45 min, of which the
-  agent was working for about 4 h. The 130 minutes of rework in iteration 3 is an idle wait on a
-  script that had stopped at its start; the 1137 minutes in iteration 4 are a wait for the go and
-  for a phone that turned out to be disconnected, before the lab phone was used instead.
+  Wall-clock from the first iteration's start to the fourth's close: 31 h 45 min. The agent's own
+  work in it is about 2 h (coding and reading, builds, runs and checks, and 17 minutes of rework);
+  the rest is waiting. The 130 minutes of rework in iteration 3 is an idle wait on a script that
+  had stopped at its start; the 1137 minutes in iteration 4 are a wait for the go and for a phone
+  that turned out to be disconnected, before the lab phone was used instead. Builds are the
+  minutes the build ran: three builds under ten seconds each, then the Android cross-compile.
 
 ## Environment
 
