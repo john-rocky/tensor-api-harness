@@ -1,0 +1,8 @@
+form                        backend    precision    ms/token  match
+opencl int8                 opencl     int8             3.30  PASS
+opencl int8 + lm_head int8  opencl     int8             3.31  PASS
+cpu int8 + lm_head int8     cpu        int8            12.73  PASS
+cpu fp32                    cpu        fp32            37.34  PASS
+fastest passing: opencl int8 3.297 ms/token (floor 37.335)
+SPEED FLOOR PASS: opencl int8 3.297 ms/token < floor cpu fp32 37.335 ms/token
+exit code: 0

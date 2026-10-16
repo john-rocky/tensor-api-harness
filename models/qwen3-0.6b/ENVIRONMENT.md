@@ -223,3 +223,16 @@ LD_LIBRARY_PATH=/data/local/tmp timeout -k 10 480 ./qwen3_main \
     runs only when MemAvailable (the lower of the job start's value and the current one) is at least
     six times the file size in kB (`du -k`) plus 1,048,576 kB.
   - Pulled outputs were checked on the Mac with the same `checks/` scripts and reference as above.
+- Attached unit (iteration 5).
+  - Phone: Galaxy S26 (SM-S942Q), attached over USB and driven with adb. Android 16 (SDK 36), build
+    `BP4A.251205.006.S942QOPS1AZH9`, SoC SM8850, MemTotal 11,389,756 kB.
+  - Binary and accelerator: the same binary and OpenCL/GL accelerator as above (same sha256).
+  - Model files: saved again on the Mac with `--serialize_only --prefill_len=32`: fp32, int8 with the
+    fp32 lm_head (`--weights_quant=int8`, 1,071,852,948 bytes) and int8 + int8 lm_head copy.
+  - Push: the files went to `/data/local/tmp/tapi_qwen3`, and each run's command is the one above
+    from that directory.
+  - GPU memory rule: MemAvailable read right before the run must be at least five times the file in
+    kB plus 524,288 kB.
+  - Thermal: nothing ran until the AP and SKIN sensors were at or below 45 °C and every sensor's
+    status was at most 1. The temperatures at each run's start are in `results/phone_s26.md`.
+  - Pull: the outputs were pulled with adb, and the directory was deleted at the end of the slot.

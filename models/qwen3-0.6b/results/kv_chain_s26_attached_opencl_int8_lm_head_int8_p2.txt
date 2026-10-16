@@ -1,0 +1,18 @@
+tensor    shape                    max_abs       cosine  bar                            result
+chain_00  [151936]              5.6706e-01   0.99947960  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_01  [151936]              8.2138e-01   0.99932540  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_02  [151936]              6.1956e-01   0.99955439  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_03  [151936]              9.3364e-01   0.99959279  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_04  [151936]              1.0368e+00   0.99946241  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_05  [151936]              1.0803e+00   0.99927120  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_06  [151936]              9.8444e-01   0.99929892  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_07  [151936]              6.5779e-01   0.99884998  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_08  [151936]              5.9443e-01   0.99892519  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_09  [151936]              4.9223e-01   0.99929878  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_10  [151936]              5.3146e-01   0.99962214  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_11  [151936]              5.9256e-01   0.99956342  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_12  [151936]              6.8458e-01   0.99963237  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_13  [151936]              6.3610e-01   0.99954168  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_14  [151936]              7.8414e-01   0.99964981  max_abs<=0.05 cosine>=0.9999   FAIL
+chain_15  [151936]              8.5361e-01   0.99954615  max_abs<=0.05 cosine>=0.9999   FAIL
+BLOCK MATCH FAIL: first chain_00 max_abs 5.6706e-01 cosine 0.99947960
