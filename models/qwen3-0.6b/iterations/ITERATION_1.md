@@ -138,3 +138,16 @@ NOT DONE models/qwen3-0.6b/skill_table.md: 8 rows not yet
 - `OPS.md`, `ENVIRONMENT.md`, `skill_table.md`, this file. Keep.
 - Not committed and deletable: the per-block dumps (reference and graph, 1.1 to 2.7 MB per prompt
   and side) and the three serialized `.tflite` files (about 2.4 GB each), all outside the repository.
+
+## Time
+Start 15:35, end 17:13 (JST, 2026-10-15). Added after the iteration from its logs; the start is the
+minute the iteration was launched.
+
+| part | count | minutes |
+|---|---|---|
+| coding and reading | — | 7 (15:35–15:43 the graph files, the reference script and the run script; 17:10–17:13 the results and this record) |
+| builds | 1 | under 1 (8.2 s, with the skeleton iteration's cache warm) |
+| waiting for the machine (another measurement was running) | 1 | 86 (5,132 s before the single run script) |
+| runs and checks | 1 script | 1 (17:09:05–17:09:52: reference dump, build, synthetic run, dumps, block match ×3, greedy, text match) |
+| rework after a failure | 0 | 0 (one build; every check passed on its first run) |
+| phone in use | 0 | 0 |

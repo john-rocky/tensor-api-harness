@@ -61,11 +61,68 @@ the same form:
 
 ## First model
 
-<!-- fill before push: models/<name>/ summary — which rows were tried, the output-match result, the fastest form, the phone result, the iteration count -->
+[Qwen3-0.6B](models/qwen3-0.6b/) went through all 15 rows in four iterations
+(`models/qwen3-0.6b/iterations/`), on an Apple M4 Max and on a Galaxy S26. The graphs are the C++ in
+`models/qwen3-0.6b/graph/`: prefill and decode signatures, the embedding lookup in the graph, the KV
+cache written at a runtime position, the tied lm_head over the embedding table.
+
+- Output match (`results/block_match_p*.txt`, `results/text_match.txt`, `results/kv_chain*.txt`): on
+  the Mac CPU in fp32, the embedding output, all 28 block outputs and the last-position logits match
+  the PyTorch reference on three prompts (largest block difference 1.5e-3), greedy decode reproduces
+  the reference ids for 16 tokens on all three prompts, and 15 chained decode steps through the KV
+  cache match a stateless reference at every step, on the CPU and on Metal.
+- Accelerators (`results/delegation_metal.md`): on Metal every one of the graph's 3994 nodes is
+  delegated, in one partition per signature, the embedding lookup and the cache writes included.
+  Metal fp32 passes the per-block bar except for one exported tensor: the final norm reads back wrong
+  while the logits computed from it are right (cause not established; recorded in iterations 2 and 3).
+  Metal fp16 does not reproduce this model's text: the residual stream reaches about 6,500 and the
+  per-block difference grows to `nan` by the last block.
+- Forms (`results/attention_forms.md`, `results/quantization.md`): the `odml.rms_norm` composite is
+  byte-identical to the raw norm on the CPU and 2.5% faster on Metal. The
+  `odml.scaled_dot_product_attention` composite runs fully delegated on Metal but slower than the raw
+  ops at these shapes, and fails to prepare on the CPU. int8 per-channel weights reproduce the
+  reference text on Metal (48 of 48 ids) and on the CPU once the lm_head is int8 too; int4
+  blockwise-32 does not reach the bar on the CPU and crashes the Metal delegate at compile.
+- Speed (`results/speed.md`, `results/speed_floor.txt`): against the CPU fp32 floor of 18.12 ms per
+  decode token, the fastest form that still matches the reference is Metal with int8 weights and an
+  int8 lm_head, 4.72 ms per token.
+- Phone (`results/phone_s26.md`): on a Galaxy S26 (SM-S942U1), a lab unit reached through Google's
+  Developer Device Platform, the CPU fp32 run gives the same ids as the Mac and its chained decode
+  matches the stateless reference at every step; decode takes 39.5 ms per token in fp32 and 11.7 with
+  int8 weights and an int8 lm_head, with the unit's CPU frequencies capped for the whole job. The
+  OpenCL form was not run: the unit had 6.5 GB free and the job's memory rule (six times the file
+  plus 1 GB, after a delegate initialization that took that much on another phone) asked for 8.3 GB.
+- Hours, from the `Time` sections of the four iteration records (minutes; the harness skeleton
+  itself is not counted):
+
+| part | iteration 1 | 2 | 3 | 4 | total |
+|---|---|---|---|---|---|
+| coding and reading | 7 | 8 | 33 | 30 | 78 |
+| builds | 1 | 1 | 1 | 16 | 19 |
+| waiting for the machine (another measurement running) | 86 | 0 | 32 | 386 | 504 |
+| waiting for a decision or for the phone | 0 | 0 | 0 | 1137 | 1137 |
+| runs and checks | 1 | 3 | 5 | 3 | 12 |
+| rework after a failure | 0 | 0 | 130 | 17 | 147 |
+| phone in use | 0 | 0 | 0 | 2 | 2 |
+
+  Wall-clock from the first iteration's start to the fourth's close: 31 h 45 min, of which the
+  agent was working for about 4 h. The 130 minutes of rework in iteration 3 is an idle wait on a
+  script that had stopped at its start; the 1137 minutes in iteration 4 are a wait for the go and
+  for a phone that turned out to be disconnected, before the lab phone was used instead.
 
 ## Environment
 
-<!-- fill before push: LiteRT commit, Bazel version, Xcode / NDK versions, Python versions, the Mac and the phone -->
+- LiteRT: `google-ai-edge/LiteRT` main at `bea3bc69df855f80e062ea5a7fb72b5445d2a64c` (2026-10-14). The
+  Metal accelerator is the `latest` prebuilt the build fetches (its sha256 is in
+  `models/qwen3-0.6b/ENVIRONMENT.md`); the Android GPU accelerator is the prebuilt
+  `libLiteRtClGlAccelerator.so` from the same fetch.
+- Bazel 7.7.0 through bazelisk 1.29.0. Xcode 27.0 (27A266a) on macOS 27.0. Android NDK 28.2.13676358
+  for the arm64 cross-compile (`bazel build -c opt --config=android_arm64`).
+- Python 3.12.11 with torch 2.14.1 and transformers 5.19.0 for the reference dumps; Python 3.14.6
+  with numpy 2.4.4 for the checks.
+- Mac: Apple M4 Max, 128 GB. Phone: Galaxy S26 (SM-S942U1), Android 16, a lab unit reached through
+  Google's Developer Device Platform: the job pushes the binary and the saved graphs, runs a shell
+  script, and the outputs are pulled back; no adb.
 
 ## License
 
