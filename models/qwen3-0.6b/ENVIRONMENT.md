@@ -236,3 +236,24 @@ LD_LIBRARY_PATH=/data/local/tmp timeout -k 10 480 ./qwen3_main \
   - Thermal: nothing ran until the AP and SKIN sensors were at or below 45 °C and every sensor's
     status was at most 1. The temperatures at each run's start are in `results/phone_s26.md`.
   - Pull: the outputs were pulled with adb, and the directory was deleted at the end of the slot.
+
+## Iteration 6 (the timing definition)
+
+Same LiteRT commit, toolchain, machine, phone and model files as above.
+
+- New flags of `qwen3_main`:
+  - `--time_readback` (default true). With `--time`, each timed interval ends after the logits
+    output buffer is locked and one value read. The lock waits for the accelerator.
+    `--time_readback=false` gives the earlier definition, which ends when `runner.Run` returns.
+    The timing JSON records the definition as `"timing": "run+readback"` or `"run"`.
+  - `--gpu_wait_hint` (default false): sets `GpuOptions::HintWaitingForCompletion(true)`.
+- With the default flags, the graph, the ids and the dumps are those of iteration 5. The phone's
+  ids and all 48 chain files of each form are byte-identical to iteration 5's.
+- Builds:
+  - host: `bazel build //tensor/examples/qwen3-0.6b:qwen3_main`, 4.2 s;
+  - Android: the iteration 4 command, NDK 28.2.13676358, 10 s. `qwen3_main` is 18,072,888 bytes,
+    sha256 `44c527af36b471d40f42046be5c8261125681fc118f9e8675e9598337e6fda88`. The OpenCL/GL
+    accelerator is unchanged (sha256 `6ec1f5d5…6d2d34`).
+- Phone runs: the command of iteration 5 from `/data/local/tmp/tapi_qwen3`. One extra run of opencl
+  int8 added `--gpu_wait_hint --time_readback=false`.
+- GPU memory rule on the phone: MemAvailable at least seven times the file in kB plus 524,288 kB.

@@ -36,3 +36,19 @@ is its output.
 | metal int4 | — | — | — | — | — | — | — | FAIL (no ids (run failed)) | 898490644 | not timed (no timing file: the run failed) |
 | metal int8 + lm_head int8 | 16.0 | 13.5 | 32.2 | 4.72 | 4.67 | 11.05 | 4.72 / 4.79 / 4.72 | PASS (48/48) | 1231082068 |  |
 | metal int4 + lm_head int8 | — | — | — | — | — | — | — | FAIL (no ids (run failed)) | 1057719764 | not timed (no timing file: the run failed) |
+
+## Timing definition (iteration 6)
+
+The table above times `runner.Run` alone. On the phone's OpenCL, `Run` returns before the GPU has
+finished, so iteration 6 added `--time_readback`. With it, the timed interval ends after the logits
+output buffer is locked and one value read (`phone_s26.md`, "Time"). Three forms of this table were
+measured again on the same Mac with both definitions, back to back in one 52 s window on 2026-10-17
+(02:21:09 to 02:22:01 JST). The difference is 5% or less for each form, so the table above stands
+with the run-only definition. The forms, decode ms/token run only → run + readback:
+
+- metal fp32 raw: 8.117 → 8.159 (+0.5%)
+- metal int8 + lm_head int8: 4.780 → 4.782 (+0.0%)
+- cpu fp32 raw: 18.701 → 18.251 (−2.4%)
+
+The prefill times moved by 1.7 ms or less on Metal and by up to 4.1 ms on the CPU (p0 29.6 → 25.5
+ms), in both directions. `timing.json` and `speed_floor.txt` are unchanged.

@@ -36,9 +36,12 @@
 // --dump_final_norm_form=identity (with --dump_blocks) feeds the lm_head from
 // Mul(final_norm, 1.0) so the exported final_norm is not its direct input.
 // --time measures each runner.Run call with steady_clock (prefill, and each
-// decode step); setting inputs, the rebind and reading the logits are outside
-// the timed interval. It prints each prompt's decode median and the median of
-// those medians, and --timing_out writes every value as JSON.
+// decode step). With --time_readback (the default) the interval ends after the
+// logits output buffer is locked and one value is read, which waits for the
+// accelerator; with --time_readback=false it ends when runner.Run returns.
+// Setting inputs, the rebind and copying the logits are outside the timed
+// interval. It prints each prompt's decode median and the median of those
+// medians, and --timing_out writes every value as JSON.
 // --prefill_len=N (N > 0) builds one model for all prompts with a prefill
 // signature of length N: each prompt is padded on the right with id 0, the
 // logits at the last prompt position are used and decode starts right after
@@ -134,6 +137,14 @@ ABSL_FLAG(bool, time, false,
           "Time each runner.Run call (prefill and every decode step)");
 ABSL_FLAG(std::string, timing_out, "",
           "Where to write the timing JSON (--time)");
+ABSL_FLAG(bool, time_readback, true,
+          "End each timed interval after locking the logits output buffer and "
+          "reading one value, so the time includes the accelerator finishing "
+          "(false: runner.Run only, which on some GPU backends returns once "
+          "the work is enqueued)");
+ABSL_FLAG(bool, gpu_wait_hint, false,
+          "Set the GPU option HintWaitingForCompletion (wait for the enqueued "
+          "commands after each invoke)");
 ABSL_FLAG(std::string, form, "", "Form name written into the timing JSON");
 ABSL_FLAG(int, prefill_len, 0,
           "Fixed prefill length for every prompt, prompts padded on the right "
@@ -233,6 +244,23 @@ absl::Status ReadFloats(LitertDynamicRunner& runner, const std::string& sig,
   return absl::OkStatus();
 }
 
+// Locks the output buffer and reads its first value: the lock waits until the
+// accelerator has written the buffer (the end of a --time_readback interval).
+absl::Status SyncOutput(LitertDynamicRunner& runner, const std::string& sig,
+                        const std::string& name) {
+  auto t = runner.GetOutput(sig, name);
+  if (!t.ok()) return t.status();
+  auto buffer = t->GetBuffer();
+  if (!buffer.ok()) return buffer.status();
+  auto lock = buffer->Lock();
+  if (lock.size() < sizeof(float)) {
+    return absl::InternalError("empty output buffer: " + name);
+  }
+  volatile float first = *reinterpret_cast<const float*>(lock.data());
+  (void)first;
+  return absl::OkStatus();
+}
+
 absl::Status WriteRaw(const std::string& path, const std::vector<float>& v) {
   std::ofstream out(path, std::ios::binary);
   if (!out) return absl::InternalError("cannot write " + path);
@@ -280,9 +308,13 @@ absl::StatusOr<::litert::Options> MakeOptions() {
         gpu_options->EnableConstantTensorSharing(true);
         gpu_options->EnableAllowSrcQuantizedFcConvOps(true);
       }
+      const bool wait_hint = absl::GetFlag(FLAGS_gpu_wait_hint);
+      if (wait_hint) gpu_options->HintWaitingForCompletion(true);
       std::cout << "gpu precision: " << precision << ", storage: " << storage
                 << ", allow_src_quantized_fc: "
-                << (src_quantized ? "true" : "false") << std::endl;
+                << (src_quantized ? "true" : "false")
+                << ", wait hint: " << (wait_hint ? "true" : "false")
+                << std::endl;
     }
   }
   return std::move(*options);
@@ -519,8 +551,10 @@ absl::Status RunPrompt(LitertDynamicRunner& runner,
       if (!st.ok()) return st;
     }
   }
+  const bool readback = absl::GetFlag(FLAGS_time_readback);
   auto t0 = std::chrono::steady_clock::now();
   st = runner.Run("prefill");
+  if (st.ok() && readback) st = SyncOutput(runner, "prefill", "logits");
   auto t1 = std::chrono::steady_clock::now();
   if (!st.ok()) return st;
   timing.prefill_ms =
@@ -611,6 +645,7 @@ absl::Status RunPrompt(LitertDynamicRunner& runner,
     if (!st.ok()) return st;
     t0 = std::chrono::steady_clock::now();
     st = runner.Run("decode");
+    if (st.ok() && readback) st = SyncOutput(runner, "decode", "logits");
     t1 = std::chrono::steady_clock::now();
     if (!st.ok()) return st;
     timing.decode_ms.push_back(
@@ -834,7 +869,11 @@ absl::Status Run() {
               << norms << "\", \"weights_quant\": \"" << quant
               << "\", \"lm_head\": \""
               << (config.separate_lm_head ? "int8" : "fp32")
-              << "\", \"prompts\": [";
+              << "\", \"timing\": \""
+              << (absl::GetFlag(FLAGS_time_readback) ? "run+readback" : "run")
+              << "\", \"gpu_wait_hint\": "
+              << (absl::GetFlag(FLAGS_gpu_wait_hint) ? "true" : "false")
+              << ", \"prompts\": [";
   std::vector<double> prompt_medians;
   for (const Prompt& prompt : prompts) {
     std::vector<int32_t> generated;

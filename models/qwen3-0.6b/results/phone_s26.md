@@ -51,7 +51,9 @@ built and no weights were read on the phone.
 | opencl int8 + lm_head int8 | 1,231,082,068 | not run | — | — | — | — |
 
 - Decode ms/token is the median of the three per-prompt medians, as on the Mac. Each prompt has 15
-  decode steps. The per-prompt medians were:
+  decode steps. These are run-only times (iteration 4's definition). On the CPU of the attached
+  unit, the run + readback definition differs from them by about 2% (section "Time" below). The
+  per-prompt medians were:
   - cpu fp32: 39.138, 39.468, 49.870
   - cpu int8 + lm_head int8: 11.665, 12.202, 11.651
 - The p0 prefill of cpu fp32, 801.6 ms, and its first decode step, 813.3 ms, are the first calls of
@@ -141,12 +143,19 @@ Temperatures are the HAL values from `dumpsys thermalservice`. The zone maximum 
 | before cpu int8 + lm_head int8 | 1 | 45.8 | 41.2 | 50.2 |
 | slot end | 1 | 44.6 | 41.1 | 49.4 |
 
-The AP sensor was above 45 °C at the start of the last three runs. The times below were taken
-under these temperatures.
+The AP sensor was above 45 °C at the start of the last three runs. The run-only times of
+iteration 5 were taken under these temperatures. The temperatures of the second slot (iteration 6)
+are listed under Time.
 
 ### Route
 
-- One device slot: 02:00:14 to 02:06:23 (JST), 6 min 9 s. Of this:
+- Second slot (iteration 6): 02:17:19 to 02:20:50 (JST), 3 min 31 s.
+  - No cooling was needed.
+  - 68 s of push: a new binary, sha256 `44c527af36b471d40f42046be5c8261125681fc118f9e8675e9598337e6fda88`
+    (the same code plus the readback timing and the wait hint flag), and the model files saved again
+    with identical sizes.
+  - 134 s of runs, from 02:18:31 to 02:20:45.
+- Iteration 5's slot: 02:00:14 to 02:06:23 (JST), 6 min 9 s. Of this:
   - 125 s of cooling;
   - 88 s of push;
   - 147 s of the four runs, from the first run's start to the last run's end;
@@ -188,26 +197,54 @@ LD_LIBRARY_PATH=. timeout -k 10 <s> ./qwen3_main --load_tflite=<file> --prefill_
 
 ### Forms
 
-| form | file bytes | delegation | ids equal /48 | KV chain (`manifest_chain`) | decode ms/token | prefill ms (len 32) p0 / p1 / p2 | start AP °C |
-|---|---|---|---|---|---|---|---|
-| cpu fp32 (the floor) | 2,384,789,652 | XNNPACK 3880 of 3994 nodes, 58 partitions | 48 (pass) | 16/16 for each prompt (pass) | 37.335 | 63.4 / 53.7 / 55.3 | 42.3 |
-| opencl int8 (lm_head fp32) | 1,071,852,948 | GPU 3994 of 3994 nodes, 2 partitions, fully accelerated | 48 (pass) | 0/16 for each prompt (fp32 bar; recorded) | 3.297 | 3.2 / 2.4 / 2.2 | 47.1 |
-| opencl int8 + lm_head int8 | 1,231,082,068 | GPU 3994 of 3994 nodes, 2 partitions, fully accelerated | 48 (pass) | 0/16 for each prompt (fp32 bar; recorded) | 3.314 | 2.4 / 2.4 / 2.3 | 48.7 |
-| cpu int8 + lm_head int8 | 1,231,082,068 | XNNPACK 3880 of 3994 nodes, 58 partitions | 48 (pass) | not checked against the fp32 bar | 12.729 | 60.8 / 48.4 / 52.7 | 45.8 |
+| form | file bytes | delegation | ids equal /48 | KV chain (`manifest_chain`) |
+|---|---|---|---|---|
+| cpu fp32 (the floor) | 2,384,789,652 | XNNPACK 3880 of 3994 nodes, 58 partitions | 48 (pass) | 16/16 for each prompt (pass) |
+| opencl int8 (lm_head fp32) | 1,071,852,948 | GPU 3994 of 3994 nodes, 2 partitions, fully accelerated | 48 (pass) | 0/16 for each prompt (fp32 bar; recorded) |
+| opencl int8 + lm_head int8 | 1,231,082,068 | GPU 3994 of 3994 nodes, 2 partitions, fully accelerated | 48 (pass) | 0/16 for each prompt (fp32 bar; recorded) |
+| cpu int8 + lm_head int8 | 1,231,082,068 | XNNPACK 3880 of 3994 nodes, 58 partitions | 48 (pass) | not checked against the fp32 bar |
 
-- Decode ms/token is the median of the three per-prompt medians. The per-prompt medians:
+### Time
 
-  | form | p0 | p1 | p2 |
-  |---|---|---|---|
-  | cpu fp32 | 38.240 | 37.319 | 37.335 |
-  | opencl int8 | 3.297 | 3.236 | 3.517 |
-  | opencl int8 + lm_head int8 | 3.248 | 3.609 | 3.314 |
-  | cpu int8 + lm_head int8 | 12.729 | 12.702 | 12.732 |
+Decode ms/token is the median of the three per-prompt medians (15 decode steps per prompt); prefill is
+one call per prompt at length 32. Two definitions of the timed interval:
 
-- What the time measures. Each number is the wall time of one `runner.Run` call; reading the logits
-  is outside it. On OpenCL, the prefill of 32 positions took less time than one decode step.
-  Whether `Run` on OpenCL returns only after the GPU has finished was not checked. So the OpenCL
-  numbers may leave out GPU time that falls into the logits read: unverified.
+- **run + readback** (iteration 6, the numbers this page and `timing_s26_attached.json` use): from
+  the start of `runner.Run` until the logits output buffer has been locked and one value read. The
+  lock waits for the accelerator to finish writing the buffer.
+- **run only** (iteration 5): until `runner.Run` returns. On this phone's OpenCL, `Run` returns once
+  the work is enqueued, so these OpenCL numbers are the time to dispatch the work. They do not
+  include the GPU finishing it.
+
+| form | decode ms/token, run + readback | per-prompt medians | prefill ms p0 / p1 / p2, run + readback | decode ms/token, run only | prefill ms, run only |
+|---|---|---|---|---|---|
+| cpu fp32 (the floor) | 38.108 | 40.896 / 37.569 / 38.108 | 82.5 / 935.1 / 64.0 | 37.335 | 63.4 / 53.7 / 55.3 |
+| opencl int8 | 26.730 | 26.658 / 26.730 / 27.102 | 70.3 / 64.6 / 62.8 | 3.297 (dispatch) | 3.2 / 2.4 / 2.2 (dispatch) |
+| opencl int8 + lm_head int8 | not measured (memory rule, below) | — | — | 3.314 (dispatch) | 2.4 / 2.4 / 2.3 (dispatch) |
+| cpu int8 + lm_head int8 | 12.991 | 13.079 / 12.991 / 12.610 | 60.7 / 47.4 / 48.1 | 12.729 | 60.8 / 48.4 / 52.7 |
+
+- The two definitions were measured in two slots of the same phone, 12 minutes apart, with the same
+  model files. The ids and all 48 chain files of every form that ran in both are byte-identical
+  between the two slots.
+- On the CPU, the two definitions differ by 2% (fp32 1.02x, int8 + lm_head int8 1.02x). On OpenCL,
+  int8 goes from 3.297 to 26.730 ms/token (8.1x) and the prefill from 2 to 3 ms to 63 to 70 ms.
+- With the readback, the prefill of 32 positions takes longer than one decode step, on both
+  backends.
+- The cpu fp32 p1 prefill of 935.1 ms is one slow call. In iteration 5 (and on the lab unit) the slow
+  first call came on p0 instead. Its cause was not measured.
+- `HintWaitingForCompletion`. LiteRT's GPU options have a hint that asks the delegate to wait for
+  the enqueued commands after each invoke. The header says it is for "some backends, for example
+  OpenCL on Mali" (`litert/c/options/litert_gpu_options.h`).
+  - A run of opencl int8 with the hint set and the run-only definition gave 2.823 ms/token. Its
+    prefill took 2.6, 1.8 and 2.1 ms.
+  - So on this phone's Adreno GPU, `Run` still returned before the GPU finished.
+  - The same run's ids and chain files are byte-identical to the other opencl int8 runs.
+- opencl int8 + lm_head int8 was not run in the second slot. The memory rule of that slot asked for
+  seven times the file plus 512 MiB, 8,939,891 kB, and MemAvailable was 8,505,892 kB. Its time with
+  the readback is not known; its run-only numbers above are the dispatch time.
+- Temperatures at the start of the second slot's runs: AP 35.5 / 42.4 / 43.8 / 44.6 °C, SKIN
+  34.5 to 38.4 °C, Thermal Status 0. In order: cpu fp32, opencl int8, opencl int8 with the hint,
+  cpu int8 + lm_head int8. The slot started at AP 34.2 °C, and nothing waited for cooling.
 - The KV chain of the OpenCL forms is checked against the fp32 bar (max abs 0.05, cosine 0.9999) as
   a record. Against the reference, the two forms reach:
 
@@ -227,6 +264,8 @@ LD_LIBRARY_PATH=. timeout -k 10 <s> ./qwen3_main --load_tflite=<file> --prefill_
   |---|---|---|---|---|
   | int8 | 7,853,188 | 687,616 | 7,165,572 kB | 6.85 |
   | int8 + lm_head int8 | 7,730,216 | 1,841,156 | 5,889,060 kB | 4.90 |
+  | int8, second slot | 8,691,868 | 1,296,916 | 7,394,952 kB | 7.06 |
+  | int8 with the wait hint, second slot | 8,415,168 | 878,704 | 7,536,464 kB | 7.20 |
 
   - The lowest reads came near the end of a compile:
     - int8: 1 s before the runner was ready;
@@ -235,11 +274,17 @@ LD_LIBRARY_PATH=. timeout -k 10 <s> ./qwen3_main --load_tflite=<file> --prefill_
   - A read every 3 s can miss a lower value in between.
   - The int8 file is the smaller of the two, but its run took more memory.
   - Five times the file plus 512 MiB was below the int8 run's drop.
+  - The second slot's rule was seven times the file plus 512 MiB. Both int8 runs there dropped by
+    a little more than seven times. The 512 MiB margin covered the difference.
 - No operation fell back to the CPU in the OpenCL runs (all 3994 nodes delegated). No compile or
   runtime error was printed; the NPU warning of the lab run (`kLiteRtStatusErrorNotFound`) appears
   here too.
-- `checks/speed_floor.py` exits 0: opencl int8, 3.297 ms/token, beats the floor, cpu fp32 at
-  37.335 ms/token (`speed_floor_s26_attached.txt`).
+- `checks/speed_floor.py` exits 0, run + readback (`speed_floor_s26_attached.txt`):
+  - the fastest passing form is cpu int8 + lm_head int8, 12.991 ms/token, against the floor of cpu
+    fp32 at 38.108 ms/token;
+  - opencl int8, 26.730 ms/token, is between them.
+  - In iteration 5, with the run-only definition, this check named opencl int8 at 3.297 ms/token.
+    That number is the dispatch time.
 
 ### Against the other runs
 
@@ -258,8 +303,8 @@ LD_LIBRARY_PATH=. timeout -k 10 <s> ./qwen3_main --load_tflite=<file> --prefill_
 - This unit's CPU against the lab unit's CPU, same files:
   - cpu fp32: ids identical, 48 of 48 chain files byte-identical;
   - cpu int8 + lm_head int8: ids identical, 48 of 48 chain files byte-identical.
-  - The times differ: fp32 37.335 against 39.468 ms/token; int8 + lm_head int8 12.729 against
-    11.665 ms/token.
+  - The times differ, run only on both units: fp32 37.335 against 39.468 ms/token; int8 + lm_head
+    int8 12.729 against 11.665 ms/token.
   - The lab unit's first prefill (801.6 ms) did not repeat here (63.4 ms).
 
 ### Files
