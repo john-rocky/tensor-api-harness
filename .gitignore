@@ -1,4 +1,4 @@
-# lane working dir (design notes, iteration logs, local LiteRT checkout, build logs)
+# local working dir (design notes, iteration logs, local LiteRT checkout, build logs)
 .lane/
 # model weights and generated graphs are never committed
 *.safetensors
