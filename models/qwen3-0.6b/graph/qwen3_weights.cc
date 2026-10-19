@@ -76,10 +76,13 @@ TfTensor BuildInt4Tensor(const int8_t* q, std::vector<float> scales,
 
 // Symmetric nearest-integer quantization of a [out, in] fp32 weight. int8:
 // one scale per output channel. int4: one fp16-rounded scale per block of 32
-// input elements. Adds the stored bytes (codes plus scales) to *bytes.
+// input elements. Adds the stored bytes (codes plus scales) to *bytes. With
+// dequantize_to_fp32, returns the quantized values (code * scale) as an fp32
+// tensor instead and adds their fp32 bytes.
 absl::StatusOr<TfTensor> QuantizeFcWeight(const TfTensor& tensor,
                                           const std::string& name,
                                           WeightQuantMode mode,
+                                          bool dequantize_to_fp32,
                                           int64_t* bytes) {
   const auto& shape = tensor.GetShape();
   if (shape.size() != 2) {
@@ -128,6 +131,26 @@ absl::StatusOr<TfTensor> QuantizeFcWeight(const TfTensor& tensor,
   }
 
   const int64_t codes = static_cast<int64_t>(q.size());
+  if (dequantize_to_fp32) {
+    std::vector<float> values(q.size());
+    for (int c = 0; c < out_channels; ++c) {
+      for (int i = 0; i < in_dim; ++i) {
+        const size_t k = static_cast<size_t>(c) * in_dim + i;
+        values[k] =
+            static_cast<float>(q[k]) *
+            scales[static_cast<size_t>(c) * blocks_per_row + i / block];
+      }
+    }
+    *bytes += codes * 4;
+    auto f_buffer = OwningCpuBuffer::Copy(
+        reinterpret_cast<const char*>(values.data()),
+        values.size() * sizeof(float));
+    TfTensor dequantized({.name = name,
+                          .type = Type::kFP32,
+                          .shape = {out_channels, in_dim},
+                          .buffer = std::move(f_buffer)});
+    return dequantized;
+  }
   if (int4) {
     *bytes += (codes + 1) / 2 + static_cast<int64_t>(scales.size()) * 2;
     return BuildInt4Tensor(q.data(), std::move(scales), out_channels, in_dim,
@@ -152,7 +175,8 @@ absl::StatusOr<WeightMap> LoadCheckpointWeights(const Qwen3Config& config,
                                                 const std::string& path,
                                                 WeightQuantMode quant_mode,
                                                 bool quantized_lm_head,
-                                                QuantStats* stats) {
+                                                QuantStats* stats,
+                                                bool dequantize_to_fp32) {
   auto loader_or = SafetensorLoader::Load(path);
   if (!loader_or.ok()) return loader_or.status();
   auto loader = std::move(*loader_or);
@@ -190,7 +214,8 @@ absl::StatusOr<WeightMap> LoadCheckpointWeights(const Qwen3Config& config,
       for (int d : spec.shape) count *= d;
       st.fp32_bytes += count * 4;
       auto quantized_or =
-          QuantizeFcWeight(tensor, spec.name, quant_mode, &st.quantized_bytes);
+          QuantizeFcWeight(tensor, spec.name, quant_mode, dequantize_to_fp32,
+                           &st.quantized_bytes);
       if (!quantized_or.ok()) return quantized_or.status();
       ++st.quantized_tensors;
       weights[spec.name] = std::move(*quantized_or);
@@ -199,6 +224,7 @@ absl::StatusOr<WeightMap> LoadCheckpointWeights(const Qwen3Config& config,
     if (quantized_lm_head && spec.name == "model.embed_tokens.weight") {
       auto lm_head_or = QuantizeFcWeight(tensor, "lm_head.weight",
                                          WeightQuantMode::kInt8,
+                                         dequantize_to_fp32,
                                          &st.lm_head_bytes);
       if (!lm_head_or.ok()) return lm_head_or.status();
       weights["lm_head.weight"] = std::move(*lm_head_or);

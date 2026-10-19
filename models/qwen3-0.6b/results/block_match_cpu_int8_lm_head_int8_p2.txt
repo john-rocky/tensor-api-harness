@@ -1,0 +1,33 @@
+tensor       shape                    max_abs       cosine  bar                            result
+emb          [18, 1024]            0.0000e+00   1.00000000  max_abs<=0.02 cosine>=0.9999   PASS
+block_00     [18, 1024]            4.4537e-02   0.99931778  max_abs<=0.02 cosine>=0.9999   FAIL
+block_01     [18, 1024]            1.9647e-01   0.99858732  max_abs<=0.02 cosine>=0.9999   FAIL
+block_02     [18, 1024]            8.7812e+00   0.99997868  max_abs<=6.17764 cosine>=0.9999 FAIL
+block_03     [18, 1024]            8.7998e+00   0.99997851  max_abs<=6.17687 cosine>=0.9999 FAIL
+block_04     [18, 1024]            8.8062e+00   0.99997841  max_abs<=6.17648 cosine>=0.9999 FAIL
+block_05     [18, 1024]            8.7773e+00   0.99997814  max_abs<=6.1764 cosine>=0.9999 FAIL
+block_06     [18, 1024]            8.7598e+00   0.99997783  max_abs<=6.17459 cosine>=0.9999 FAIL
+block_07     [18, 1024]            8.7178e+00   0.99997675  max_abs<=6.17276 cosine>=0.9999 FAIL
+block_08     [18, 1024]            8.7114e+00   0.99997707  max_abs<=6.16894 cosine>=0.9999 FAIL
+block_09     [18, 1024]            8.7412e+00   0.99997675  max_abs<=6.1633 cosine>=0.9999 FAIL
+block_10     [18, 1024]            8.7202e+00   0.99997586  max_abs<=6.16181 cosine>=0.9999 FAIL
+block_11     [18, 1024]            8.7192e+00   0.99997532  max_abs<=6.15851 cosine>=0.9999 FAIL
+block_12     [18, 1024]            8.7017e+00   0.99997508  max_abs<=6.15617 cosine>=0.9999 FAIL
+block_13     [18, 1024]            8.7866e+00   0.99997472  max_abs<=6.15395 cosine>=0.9999 FAIL
+block_14     [18, 1024]            8.8369e+00   0.99997409  max_abs<=6.14978 cosine>=0.9999 FAIL
+block_15     [18, 1024]            8.9756e+00   0.99997293  max_abs<=6.14854 cosine>=0.9999 FAIL
+block_16     [18, 1024]            9.0601e+00   0.99997018  max_abs<=6.14702 cosine>=0.9999 FAIL
+block_17     [18, 1024]            9.1406e+00   0.99996594  max_abs<=6.14837 cosine>=0.9999 FAIL
+block_18     [18, 1024]            9.1016e+00   0.99996012  max_abs<=6.15288 cosine>=0.9999 FAIL
+block_19     [18, 1024]            9.2798e+00   0.99995305  max_abs<=6.16265 cosine>=0.9999 FAIL
+block_20     [18, 1024]            8.8789e+00   0.99994028  max_abs<=6.16872 cosine>=0.9999 FAIL
+block_21     [18, 1024]            8.9917e+00   0.99992265  max_abs<=6.17649 cosine>=0.9999 FAIL
+block_22     [18, 1024]            9.0088e+00   0.99989316  max_abs<=6.18106 cosine>=0.9999 FAIL
+block_23     [18, 1024]            8.7476e+00   0.99986369  max_abs<=6.18758 cosine>=0.9999 FAIL
+block_24     [18, 1024]            8.6050e+00   0.99982732  max_abs<=6.19249 cosine>=0.9999 FAIL
+block_25     [18, 1024]            8.4268e+00   0.99978154  max_abs<=6.19439 cosine>=0.9999 FAIL
+block_26     [18, 1024]            1.1279e+01   0.99972287  max_abs<=5.94694 cosine>=0.9999 FAIL
+block_27     [18, 1024]            5.5245e+02   0.93886197  max_abs<=1.17271 cosine>=0.9999 FAIL
+final_norm   [18, 1024]            4.5961e+01   0.97485065  max_abs<=0.0780676 cosine>=0.9999 FAIL
+logits_last  [151936]              1.9256e+00   0.99506142  max_abs<=0.05 cosine>=0.9999   FAIL
+BLOCK MATCH FAIL: first block_00 max_abs 4.4537e-02 cosine 0.99931778

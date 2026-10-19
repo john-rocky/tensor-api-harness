@@ -32,7 +32,13 @@
 // as odml.scaled_dot_product_attention over the GQA pre-fold;
 // --weights_quant=int8|int4 quantizes the decoder matmul weights while
 // loading (see qwen3_weights.h); --weights_quant_lm_head adds an int8 copy of
-// the embedding table for the lm_head.
+// the embedding table for the lm_head; --weights_dequant_fp32 stores those
+// quantized weights as their values (code * scale) in fp32 tensors, so the
+// matmuls take the rounded weights with fp32 inputs.
+// --cpu_disable_dynamic_quantization (CPU) passes the XNNPACK delegate its
+// default flags plus DISABLE_DYNAMICALLY_QUANTIZED_OPS: the delegate then
+// leaves a FullyConnected with fp32 input and int8 weights to the TFLite
+// builtin kernel instead of quantizing its input itself.
 // --dump_final_norm_form=identity (with --dump_blocks) feeds the lm_head from
 // Mul(final_norm, 1.0) so the exported final_norm is not its direct input.
 // --time measures each runner.Run call with steady_clock (prefill, and each
@@ -77,6 +83,7 @@
 #include "litert/cc/litert_environment.h"
 #include "litert/cc/litert_environment_options.h"
 #include "litert/cc/litert_options.h"
+#include "litert/cc/options/litert_cpu_options.h"
 #include "litert/cc/options/litert_gpu_options.h"
 #include "tensor/backends/tflite/tflite_flatbuffer_conversion.h"
 #include "tensor/datatypes.h"
@@ -85,6 +92,7 @@
 #include "tensor/examples/qwen3-0.6b/qwen3_weights.h"
 #include "tensor/runners/litert/litert_dynamic_runner.h"
 #include "tensor/tensor.h"
+#include "tflite/delegates/xnnpack/xnnpack_delegate.h"
 
 ABSL_FLAG(std::string, weights, "",
           "model.safetensors path (empty = synthetic weights under the real "
@@ -126,6 +134,14 @@ ABSL_FLAG(std::string, weights_quant, "none",
 ABSL_FLAG(bool, weights_quant_lm_head, false,
           "Add an int8 per-channel copy of the embedding table for the lm_head "
           "(the lookup keeps the fp32 table)");
+ABSL_FLAG(bool, weights_dequant_fp32, false,
+          "With --weights_quant: store every quantized weight (and the "
+          "--weights_quant_lm_head copy) as its quantized values, code * "
+          "scale, in an fp32 tensor");
+ABSL_FLAG(bool, cpu_disable_dynamic_quantization, false,
+          "CPU: XNNPACK delegate flags = its defaults plus "
+          "DISABLE_DYNAMICALLY_QUANTIZED_OPS (a FullyConnected with fp32 input "
+          "and int8 weights then runs on the TFLite builtin kernel)");
 ABSL_FLAG(bool, gpu_allow_src_quantized_fc, false,
           "GPU: quantize the input of large FullyConnected ops to 8 bit "
           "(EnableAllowSrcQuantizedFcConvOps, with constant tensor sharing)");
@@ -316,6 +332,23 @@ absl::StatusOr<::litert::Options> MakeOptions() {
                 << ", wait hint: " << (wait_hint ? "true" : "false")
                 << std::endl;
     }
+  }
+  // Only touch the CPU options when asked: the flags given here replace the
+  // delegate's default flags, so the defaults are read and kept.
+  if (!use_gpu && absl::GetFlag(FLAGS_cpu_disable_dynamic_quantization)) {
+    auto cpu_options = options->GetCpuOptions();
+    if (!cpu_options.HasValue()) {
+      return absl::InternalError("GetCpuOptions failed");
+    }
+    const uint32_t default_flags = TfLiteXNNPackDelegateOptionsDefault().flags;
+    const uint32_t flags =
+        default_flags |
+        TFLITE_XNNPACK_DELEGATE_FLAG_DISABLE_DYNAMICALLY_QUANTIZED_OPS;
+    if (!cpu_options->SetXNNPackFlags(flags)) {
+      return absl::InternalError("SetXNNPackFlags failed");
+    }
+    std::cout << "cpu xnnpack flags: " << flags << " (default " << default_flags
+              << " + DISABLE_DYNAMICALLY_QUANTIZED_OPS)" << std::endl;
   }
   return std::move(*options);
 }
@@ -714,6 +747,16 @@ absl::Status Run() {
     return absl::InvalidArgumentError("--weights_quant must be none|int8|int4");
   }
   config.separate_lm_head = absl::GetFlag(FLAGS_weights_quant_lm_head);
+  const bool dequant_fp32 = absl::GetFlag(FLAGS_weights_dequant_fp32);
+  if (dequant_fp32 && quant_mode == qwen3::WeightQuantMode::kNone) {
+    return absl::InvalidArgumentError(
+        "--weights_dequant_fp32 needs --weights_quant=int8|int4");
+  }
+  if (absl::GetFlag(FLAGS_cpu_disable_dynamic_quantization) &&
+      absl::GetFlag(FLAGS_accelerator) != "cpu") {
+    return absl::InvalidArgumentError(
+        "--cpu_disable_dynamic_quantization needs --accelerator=cpu");
+  }
   const std::string final_norm_form = absl::GetFlag(FLAGS_dump_final_norm_form);
   if (final_norm_form != "direct" && final_norm_form != "identity") {
     return absl::InvalidArgumentError(
@@ -743,15 +786,17 @@ absl::Status Run() {
   const bool use_gpu = absl::GetFlag(FLAGS_accelerator) == "gpu";
   const std::string backend = use_gpu ? kGpuBackend : "cpu";
   const std::string precision =
-      quant != "none" ? quant
-                      : (use_gpu ? absl::GetFlag(FLAGS_gpu_precision) : "fp32");
+      quant != "none"
+          ? (dequant_fp32 ? absl::StrCat(quant, " as fp32") : quant)
+          : (use_gpu ? absl::GetFlag(FLAGS_gpu_precision) : "fp32");
   std::string form = absl::GetFlag(FLAGS_form);
   if (form.empty()) {
     form = absl::StrCat(backend, " ", precision, " attention=", attention,
                         " norms=", norms);
   }
   std::cout << "form: " << form << " (attention " << attention << ", norms "
-            << norms << ", weights_quant " << quant << ", lm_head "
+            << norms << ", weights_quant " << quant
+            << (dequant_fp32 ? " dequantized to fp32" : "") << ", lm_head "
             << (config.separate_lm_head ? "int8 copy" : "tied fp32 table")
             << (config.dump_blocks
                     ? absl::StrCat(", final_norm dump ", final_norm_form)
@@ -814,7 +859,8 @@ absl::Status Run() {
   } else {
     qwen3::QuantStats stats;
     auto weights_or = qwen3::LoadCheckpointWeights(
-        config, weights_path, quant_mode, config.separate_lm_head, &stats);
+        config, weights_path, quant_mode, config.separate_lm_head, &stats,
+        dequant_fp32);
     if (!weights_or.ok()) return weights_or.status();
     weights = std::move(*weights_or);
     std::cout << "weights: " << weights_path << " (" << weights.size()
@@ -826,12 +872,16 @@ absl::Status Run() {
     if (quant_mode != qwen3::WeightQuantMode::kNone) {
       std::cout << "weights_quant " << quant << ": " << stats.quantized_tensors
                 << " tensors, fp32 " << stats.fp32_bytes << " bytes -> "
-                << stats.quantized_bytes << " bytes (codes + scales)"
+                << stats.quantized_bytes
+                << (dequant_fp32 ? " bytes (fp32 values of code * scale)"
+                                 : " bytes (codes + scales)")
                 << std::endl;
     }
     if (config.separate_lm_head) {
       std::cout << "lm_head int8 copy: " << stats.lm_head_bytes
-                << " bytes (codes + scales)" << std::endl;
+                << (dequant_fp32 ? " bytes (fp32 values of code * scale)"
+                                 : " bytes (codes + scales)")
+                << std::endl;
     }
   }
 

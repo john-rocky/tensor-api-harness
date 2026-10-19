@@ -1,0 +1,48 @@
+Frames in the /usr/bin/sample call graph of one greedy run (3 prompts, greedy 16) per form,
+sampled every 1 ms for the whole process (loading, graph build, compile and inference).
+Filtered to GEMM, input packing and FULLY_CONNECTED frames; the number is the sum of the
+call-graph sample counts on that frame's lines.
+
+== cpu_int8
+sampled threads: 1
+   2320  kai_run_rhs_pack_nxk_qsi8cxp_qsi8cx_neon
+    356  xnn_compute_inline_packed_qp8gemm
+    187  xnn_pf32_gemm_minmax_ukernel_1x32__neonsme2
+    151  kai_run_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4vlx4_1x4vl_sme2_dot
+     27  xnn_pf32_gemm_minmax_ukernel_32x32__neonsme2
+     22  xnn_compute_qp8gemm
+     18  kai_run_matmul_clamp_f32_qai8dxp1vlx4_qsi8cxp4vlx4_1vlx4vl_sme2_mopa
+      9  xnn_compute_batched_packw_gemm_goi
+      9  kai_run_lhs_quant_pack_qai8dxp_f32
+      8  xnn_compute_grouped_inline_packed_qp8gemm
+      6  xnn_compute_batched_packw_gemm_gio
+      3  xnn_x32_pack_lh_ukernel__neonsme2
+
+== cpu_int8_dequant_fp32
+sampled threads: 1
+    725  xnn_pf32_gemm_minmax_ukernel_1x32__neonsme2
+    725  xnn_compute_inline_packed_qp8gemm
+     83  xnn_pf32_gemm_minmax_ukernel_32x32__neonsme2
+     81  xnn_compute_qp8gemm
+      8  xnn_compute_batched_packw_gemm_goi
+      6  xnn_compute_batched_packw_gemm_gio
+      3  xnn_compute_grouped_inline_packed_qp8gemm
+      2  xnn_x32_pack_lh_ukernel__neonsme2
+      2  xnn_compute_pack_lh
+      1  xnn_x32_pack_lh_offset__neonsme2
+
+== cpu_int8_builtin_fc
+sampled threads: 1
+    714  tflite::ops::builtin::fully_connected::EvalHybrid
+    713  tflite::ops::builtin::fully_connected::EvalHybridDense
+    534  tflite::tensor_utils::NeonMatrixBatchVectorMultiplyAccumulateImpl
+    184  xnn_pf32_gemm_minmax_ukernel_1x32__neonsme2
+    184  xnn_compute_inline_packed_qp8gemm
+    141  tflite::tensor_utils::NeonMatrixBatchVectorMultiplyAccumulate
+     36  tflite::tensor_utils::NeonSymmetricQuantizeFloats
+     23  xnn_pf32_gemm_minmax_ukernel_32x32__neonsme2
+     20  xnn_compute_qp8gemm
+      8  xnn_compute_batched_packw_gemm_goi
+      8  xnn_compute_batched_packw_gemm_gio
+      5  xnn_compute_grouped_inline_packed_qp8gemm
+      2  xnn_x32_pack_lh_ukernel__neonsme2

@@ -18,6 +18,9 @@
 // lm_head) stay fp32. With quantized_lm_head, an extra int8 per-channel copy
 // of the table is added as "lm_head.weight" for the lm_head FullyConnected
 // only (the lookup keeps the fp32 table).
+// With dequantize_to_fp32, every quantized weight (the lm_head copy too) is
+// stored as its quantized values, code * scale, in an fp32 tensor: the graph
+// sees the same rounded weights as the quantized form, with fp32 types.
 
 #ifndef TENSOR_EXAMPLES_QWEN3_0_6B_QWEN3_WEIGHTS_H_
 #define TENSOR_EXAMPLES_QWEN3_0_6B_QWEN3_WEIGHTS_H_
@@ -38,17 +41,19 @@ struct QuantStats {
   int quantized_tensors = 0;
   // Bytes of the quantized weights as fp32, and as stored after quantization
   // (codes plus scales: fp32 per-channel scales for int8, fp16 block scales
-  // for int4).
+  // for int4; with dequantize_to_fp32, the fp32 values).
   int64_t fp32_bytes = 0;
   int64_t quantized_bytes = 0;
-  // The extra int8 lm_head copy, codes plus scales (0 when not added).
+  // The extra int8 lm_head copy, codes plus scales, or its fp32 values with
+  // dequantize_to_fp32 (0 when not added).
   int64_t lm_head_bytes = 0;
 };
 
 absl::StatusOr<WeightMap> LoadCheckpointWeights(
     const Qwen3Config& config, const std::string& path,
     WeightQuantMode quant_mode = WeightQuantMode::kNone,
-    bool quantized_lm_head = false, QuantStats* stats = nullptr);
+    bool quantized_lm_head = false, QuantStats* stats = nullptr,
+    bool dequantize_to_fp32 = false);
 
 }  // namespace litert::tensor::examples::qwen3
 

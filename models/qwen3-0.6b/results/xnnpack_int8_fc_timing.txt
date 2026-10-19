@@ -1,0 +1,22 @@
+Decode timing of iteration 8, Apple M4 Max CPU (XNNPACK), one quiet window on 2026-10-19 from
+22:01:02 to 22:05:03 JST (241 s; no other measurement on the machine). The seven forms alternate,
+each pass starting one form later; pass 0 is discarded, passes 1 to 8 are measured. One run = the
+three prompts, prefill + 15 decode steps (greedy 16), each call timed until the logits buffer is read
+(--time with --time_readback, the default). Per run: the median of the three per-prompt medians.
+Per form: the median of the 8 runs, [min, max], the prefill median per prompt, and the ids /48 of the
+timed runs (every run gave the same count).
+
+cpu_int8: decode 9.208 ms/token median of 8 runs [9.053, 9.357]; prefill p0/p1/p2 14.7 / 14.3 / 28.0 ms; timing run+readback; ids /48 in the timed runs [41]; runs 9.288 9.222 9.053 9.181 9.193 9.176 9.260 9.357
+cpu_int8_dequant_fp32: decode 18.045 ms/token median of 8 runs [17.932, 18.908]; prefill p0/p1/p2 25.4 / 25.4 / 46.0 ms; timing run+readback; ids /48 in the timed runs [48]; runs 18.200 17.932 18.019 18.080 17.952 18.072 18.013 18.908
+cpu_int8_lm_head_int8: decode 6.130 ms/token median of 8 runs [6.008, 6.324]; prefill p0/p1/p2 11.1 / 10.1 / 21.6 ms; timing run+readback; ids /48 in the timed runs [48]; runs 6.008 6.324 6.250 6.156 6.011 6.056 6.152 6.108
+cpu_int8_lm_head_int8_dequant_fp32: decode 18.007 ms/token median of 8 runs [17.921, 18.752]; prefill p0/p1/p2 25.4 / 24.6 / 45.4 ms; timing run+readback; ids /48 in the timed runs [48]; runs 18.153 18.752 17.933 17.986 17.971 17.921 18.028 18.270
+cpu_int8_builtin_fc: decode 16.599 ms/token median of 8 runs [16.372, 17.800]; prefill p0/p1/p2 89.2 / 77.0 / 99.1 ms; timing run+readback; ids /48 in the timed runs [33]; runs 17.800 16.696 16.501 16.468 17.644 16.753 16.372 16.424
+cpu_int8_lm_head_int8_builtin_fc: decode 15.661 ms/token median of 8 runs [15.578, 17.137]; prefill p0/p1/p2 108.8 / 97.4 / 123.7 ms; timing run+readback; ids /48 in the timed runs [22]; runs 17.137 15.578 16.360 15.589 16.237 15.631 15.592 15.691
+cpu_fp32: decode 18.107 ms/token median of 8 runs [17.991, 18.959]; prefill p0/p1/p2 25.8 / 24.9 / 45.8 ms; timing run+readback; ids /48 in the timed runs [48]; runs 18.097 18.959 18.206 18.045 17.991 18.042 18.117 18.164
+cpu_int8_dequant_fp32 vs cpu_int8: +96.0 %
+cpu_int8_lm_head_int8_dequant_fp32 vs cpu_int8_lm_head_int8: +193.7 %
+cpu_int8_lm_head_int8 vs cpu_int8: -33.4 %
+cpu_int8_lm_head_int8_dequant_fp32 vs cpu_int8_dequant_fp32: -0.2 % (under 10 %)
+cpu_int8_builtin_fc vs cpu_int8: +80.3 %
+cpu_int8_lm_head_int8_builtin_fc vs cpu_int8_lm_head_int8: +155.5 %
+cpu_fp32 vs cpu_int8_dequant_fp32: +0.3 % (under 10 %)

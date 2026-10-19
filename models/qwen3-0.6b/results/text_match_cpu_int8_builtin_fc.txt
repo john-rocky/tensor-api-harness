@@ -1,0 +1,4 @@
+p0 equal 21 tokens
+p1 equal 20 tokens
+p2 first mismatch at 19: got 35150 ref 330
+TEXT MATCH FAIL: 1 prompts
