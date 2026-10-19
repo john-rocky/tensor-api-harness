@@ -42,8 +42,9 @@ struct Qwen3Inputs {
 };
 
 struct Qwen3Outputs {
-  // [1, seq, vocab_size] kFP32.
+  // [1, seq, vocab_size] kFP32. Not part of the outputs when omit_logits.
   TfTensor logits;
+  bool omit_logits = false;
   // Updated caches, same shapes as the inputs.
   std::vector<TfTensor> key_caches;
   std::vector<TfTensor> value_caches;

@@ -41,6 +41,10 @@ struct Qwen3Config {
   // Use the separately quantized "lm_head.weight" from the weight map for the
   // lm_head instead of the shared embedding table (row 12 option).
   bool separate_lm_head = false;
+  // End the graph after the last decoder block: no final norm, no lm_head and
+  // no logits output, only the updated caches (for a prefill signature whose
+  // logits are never read). Ignored with dump_blocks.
+  bool omit_logits = false;
 
   int qkv_out_dim() const { return n_heads * head_dim; }
   int kv_out_dim() const { return n_kv_groups * head_dim; }

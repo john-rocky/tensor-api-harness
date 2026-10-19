@@ -250,7 +250,8 @@ std::vector<TfTensor> Qwen3Inputs::AsList() const {
 }
 
 std::vector<TfTensor> Qwen3Outputs::AsList() const {
-  std::vector<TfTensor> list = {logits};
+  std::vector<TfTensor> list;
+  if (!omit_logits) list.push_back(logits);
   for (size_t i = 0; i < key_caches.size(); ++i) {
     list.push_back(key_caches[i]);
     list.push_back(value_caches[i]);
@@ -369,6 +370,10 @@ Qwen3Outputs BuildQwen3(const Qwen3Config& config, const Qwen3Inputs& inputs,
     }
   }
 
+  if (config.omit_logits && !dump) {
+    outputs.omit_logits = true;
+    return outputs;
+  }
   hidden = RmsNorm(hidden, GetWeight(weights, "model.norm.weight"),
                    config.rms_norm_eps, config.rms_norm_composite);
   if (dump) {
