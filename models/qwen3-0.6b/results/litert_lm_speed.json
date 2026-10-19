@@ -1,0 +1,3094 @@
+{
+ "what": "Qwen3-0.6B, Apple M4 Max: LiteRT-LM's benchmark entry with forced prefill 1024, decode 256 and KV cache 2048, one process per run, the Tensor API executor (ExecutorBackendRegistry) and LiteRT-LM's own executors in the same binary on the published .litertlm file",
+ "forms": {
+  "lm_cpu": {
+   "executor": "LiteRT-LM CPU (XNNPACK)",
+   "flags": [
+    "--backend=cpu"
+   ],
+   "cache_dir": "shared",
+   "weights": "the published file",
+   "precision_and_options": "LiteRT-LM's defaults",
+   "output_match": {
+    "equal_ids_of_48": 31,
+    "per_prompt": [
+     5,
+     16,
+     10
+    ],
+    "source": "results/litert_lm_ids_lm_cpu.json",
+    "bar": "none (LiteRT-LM's own executor)"
+   },
+   "runs": 9,
+   "measured_runs": 8,
+   "failed_runs": [],
+   "seen_in_logs": {
+    "cpu_threads": [
+     4
+    ],
+    "xnnpack_flags": [],
+    "gpu_precision": [],
+    "webgpu_init_lines": [
+     0
+    ],
+    "webgpu_init_from": [],
+    "other_gpu_api_lines": [],
+    "gpu_adapter": [],
+    "kv_cache_length": [
+     2048
+    ],
+    "sampler_handles_input": [
+     false
+    ]
+   },
+   "summary": {
+    "prefill_tokens_per_s": {
+     "median": 654.255,
+     "min": 472.99,
+     "max": 691.95,
+     "n": 8
+    },
+    "decode_tokens_per_s": {
+     "median": 29.185000000000002,
+     "min": 24.89,
+     "max": 30.32,
+     "n": 8
+    },
+    "time_to_first_token_s": {
+     "median": 1.6,
+     "min": 1.51,
+     "max": 2.2,
+     "n": 8
+    },
+    "prefill_s": {
+     "median": 1.5655172915,
+     "min": 1.479866917,
+     "max": 2.164952584,
+     "n": 8
+    },
+    "decode_s": {
+     "median": 8.772786208,
+     "min": 8.442240792,
+     "max": 10.284720875,
+     "n": 8
+    },
+    "init_total_ms": {
+     "median": 120.175,
+     "min": 108.55,
+     "max": 125.44,
+     "n": 8
+    },
+    "peak_memory_footprint_bytes": {
+     "median": 1197623660.0,
+     "min": 1195952480,
+     "max": 1211074936,
+     "n": 8
+    },
+    "maximum_resident_set_size_bytes": {
+     "median": 1891540992.0,
+     "min": 1888190464,
+     "max": 1902919680,
+     "n": 8
+    }
+   }
+  },
+  "tapi_cpu_xf": {
+   "executor": "Tensor API CPU (XNNPACK)",
+   "flags": [
+    "--backend=tensor_api_cpu",
+    "--tensor_api_litert_lm_xnnpack_flags"
+   ],
+   "cache_dir": "shared",
+   "weights": "fp32",
+   "precision_and_options": "XNNPACK flags of LiteRT-LM's CPU executor",
+   "output_match": {
+    "equal_ids_of_48": 48,
+    "per_prompt": [
+     16,
+     16,
+     16
+    ],
+    "source": "results/litert_lm_ids_tapi_cpu_xf.json",
+    "bar": ">= 44 of 48"
+   },
+   "runs": 4,
+   "measured_runs": 3,
+   "failed_runs": [],
+   "seen_in_logs": {
+    "cpu_threads": [
+     4
+    ],
+    "xnnpack_flags": [
+     "of LiteRT-LM's CPU executor"
+    ],
+    "gpu_precision": [],
+    "webgpu_init_lines": [
+     0
+    ],
+    "webgpu_init_from": [],
+    "other_gpu_api_lines": [],
+    "gpu_adapter": [],
+    "kv_cache_length": [
+     2048
+    ],
+    "sampler_handles_input": [
+     false
+    ]
+   },
+   "summary": {
+    "prefill_tokens_per_s": {
+     "median": 993.96,
+     "min": 964.13,
+     "max": 996.71,
+     "n": 3
+    },
+    "decode_tokens_per_s": {
+     "median": 25.21,
+     "min": 25.06,
+     "max": 30.11,
+     "n": 3
+    },
+    "time_to_first_token_s": {
+     "median": 1.07,
+     "min": 1.06,
+     "max": 1.1,
+     "n": 3
+    },
+    "prefill_s": {
+     "median": 1.030222083,
+     "min": 1.027379458,
+     "max": 1.062100167,
+     "n": 3
+    },
+    "decode_s": {
+     "median": 10.154344417,
+     "min": 8.501364416,
+     "max": 10.214560791,
+     "n": 3
+    },
+    "init_total_ms": {
+     "median": 963.84,
+     "min": 934.86,
+     "max": 964.64,
+     "n": 3
+    },
+    "peak_memory_footprint_bytes": {
+     "median": 11101517336,
+     "min": 11099977264,
+     "max": 11103335984,
+     "n": 3
+    },
+    "maximum_resident_set_size_bytes": {
+     "median": 11164090368,
+     "min": 11161911296,
+     "max": 11164893184,
+     "n": 3
+    }
+   }
+  },
+  "tapi_cpu_int8_xf": {
+   "executor": "Tensor API CPU (XNNPACK)",
+   "flags": [
+    "--backend=tensor_api_cpu",
+    "--tensor_api_weights_quant=int8",
+    "--tensor_api_lm_head_int8",
+    "--tensor_api_litert_lm_xnnpack_flags"
+   ],
+   "cache_dir": "shared",
+   "weights": "int8 per-channel + int8 lm_head copy",
+   "precision_and_options": "XNNPACK flags of LiteRT-LM's CPU executor",
+   "output_match": {
+    "equal_ids_of_48": 48,
+    "per_prompt": [
+     16,
+     16,
+     16
+    ],
+    "source": "results/litert_lm_ids_tapi_cpu_int8_xf.json",
+    "bar": ">= 44 of 48"
+   },
+   "runs": 4,
+   "measured_runs": 3,
+   "failed_runs": [],
+   "seen_in_logs": {
+    "cpu_threads": [
+     4
+    ],
+    "xnnpack_flags": [
+     "of LiteRT-LM's CPU executor"
+    ],
+    "gpu_precision": [],
+    "webgpu_init_lines": [
+     0
+    ],
+    "webgpu_init_from": [],
+    "other_gpu_api_lines": [],
+    "gpu_adapter": [],
+    "kv_cache_length": [
+     2048
+    ],
+    "sampler_handles_input": [
+     false
+    ]
+   },
+   "summary": {
+    "prefill_tokens_per_s": {
+     "median": 1220.91,
+     "min": 397.22,
+     "max": 1248.83,
+     "n": 3
+    },
+    "decode_tokens_per_s": {
+     "median": 48.62,
+     "min": 36.83,
+     "max": 48.88,
+     "n": 3
+    },
+    "time_to_first_token_s": {
+     "median": 0.86,
+     "min": 0.85,
+     "max": 2.6,
+     "n": 3
+    },
+    "prefill_s": {
+     "median": 0.838720958,
+     "min": 0.819965458,
+     "max": 2.577918,
+     "n": 3
+    },
+    "decode_s": {
+     "median": 5.265501,
+     "min": 5.237409417,
+     "max": 6.950935584,
+     "n": 3
+    },
+    "init_total_ms": {
+     "median": 1879.46,
+     "min": 1822.9,
+     "max": 1914.73,
+     "n": 3
+    },
+    "peak_memory_footprint_bytes": {
+     "median": 5083307184,
+     "min": 4761901512,
+     "max": 5235842344,
+     "n": 3
+    },
+    "maximum_resident_set_size_bytes": {
+     "median": 5151768576,
+     "min": 4832739328,
+     "max": 5305155584,
+     "n": 3
+    }
+   }
+  },
+  "tapi_cpu": {
+   "executor": "Tensor API CPU (XNNPACK)",
+   "flags": [
+    "--backend=tensor_api_cpu"
+   ],
+   "cache_dir": "shared",
+   "weights": "fp32",
+   "precision_and_options": "LiteRT's default XNNPACK flags",
+   "output_match": {
+    "equal_ids_of_48": 48,
+    "per_prompt": [
+     16,
+     16,
+     16
+    ],
+    "source": "results/litert_lm_ids_tapi_cpu.json",
+    "bar": ">= 44 of 48"
+   },
+   "runs": 9,
+   "measured_runs": 8,
+   "failed_runs": [],
+   "seen_in_logs": {
+    "cpu_threads": [
+     4
+    ],
+    "xnnpack_flags": [
+     "LiteRT default"
+    ],
+    "gpu_precision": [],
+    "webgpu_init_lines": [
+     0
+    ],
+    "webgpu_init_from": [],
+    "other_gpu_api_lines": [],
+    "gpu_adapter": [],
+    "kv_cache_length": [
+     2048
+    ],
+    "sampler_handles_input": [
+     false
+    ]
+   },
+   "summary": {
+    "prefill_tokens_per_s": {
+     "median": 1053.65,
+     "min": 978.95,
+     "max": 1084.26,
+     "n": 8
+    },
+    "decode_tokens_per_s": {
+     "median": 30.365,
+     "min": 29.49,
+     "max": 31.5,
+     "n": 8
+    },
+    "time_to_first_token_s": {
+     "median": 1.005,
+     "min": 0.98,
+     "max": 1.08,
+     "n": 8
+    },
+    "prefill_s": {
+     "median": 0.971894479,
+     "min": 0.944423208,
+     "max": 1.046022,
+     "n": 8
+    },
+    "decode_s": {
+     "median": 8.430606729,
+     "min": 8.127163291,
+     "max": 8.679766,
+     "n": 8
+    },
+    "init_total_ms": {
+     "median": 924.87,
+     "min": 901.54,
+     "max": 1077.23,
+     "n": 8
+    },
+    "peak_memory_footprint_bytes": {
+     "median": 11102041648.0,
+     "min": 11098781256,
+     "max": 11103237704,
+     "n": 8
+    },
+    "maximum_resident_set_size_bytes": {
+     "median": 11163746304.0,
+     "min": 11161501696,
+     "max": 11165466624,
+     "n": 8
+    }
+   }
+  },
+  "tapi_cpu_int8": {
+   "executor": "Tensor API CPU (XNNPACK)",
+   "flags": [
+    "--backend=tensor_api_cpu",
+    "--tensor_api_weights_quant=int8",
+    "--tensor_api_lm_head_int8"
+   ],
+   "cache_dir": "shared",
+   "weights": "int8 per-channel + int8 lm_head copy",
+   "precision_and_options": "LiteRT's default XNNPACK flags",
+   "output_match": {
+    "equal_ids_of_48": 48,
+    "per_prompt": [
+     16,
+     16,
+     16
+    ],
+    "source": "results/litert_lm_ids_tapi_cpu_int8.json",
+    "bar": ">= 44 of 48"
+   },
+   "runs": 4,
+   "measured_runs": 3,
+   "failed_runs": [],
+   "seen_in_logs": {
+    "cpu_threads": [
+     4
+    ],
+    "xnnpack_flags": [
+     "LiteRT default"
+    ],
+    "gpu_precision": [],
+    "webgpu_init_lines": [
+     0
+    ],
+    "webgpu_init_from": [],
+    "other_gpu_api_lines": [],
+    "gpu_adapter": [],
+    "kv_cache_length": [
+     2048
+    ],
+    "sampler_handles_input": [
+     false
+    ]
+   },
+   "summary": {
+    "prefill_tokens_per_s": {
+     "median": 1209.3,
+     "min": 1090.31,
+     "max": 1269.71,
+     "n": 3
+    },
+    "decode_tokens_per_s": {
+     "median": 48.91,
+     "min": 48.85,
+     "max": 48.96,
+     "n": 3
+    },
+    "time_to_first_token_s": {
+     "median": 0.87,
+     "min": 0.83,
+     "max": 0.96,
+     "n": 3
+    },
+    "prefill_s": {
+     "median": 0.8467713750000001,
+     "min": 0.8064822500000001,
+     "max": 0.9391809170000001,
+     "n": 3
+    },
+    "decode_s": {
+     "median": 5.233990167,
+     "min": 5.229184084,
+     "max": 5.24071825,
+     "n": 3
+    },
+    "init_total_ms": {
+     "median": 1804.19,
+     "min": 1796.72,
+     "max": 1949.28,
+     "n": 3
+    },
+    "peak_memory_footprint_bytes": {
+     "median": 4764113352,
+     "min": 4761131464,
+     "max": 5081488584,
+     "n": 3
+    },
+    "maximum_resident_set_size_bytes": {
+     "median": 4834000896,
+     "min": 4829855744,
+     "max": 5148721152,
+     "n": 3
+    }
+   }
+  },
+  "lm_gpu": {
+   "executor": "LiteRT-LM GPU (WebGPU)",
+   "flags": [
+    "--backend=gpu"
+   ],
+   "cache_dir": "shared",
+   "weights": "the published file",
+   "precision_and_options": "fp16 activations (LiteRT-LM's default)",
+   "output_match": {
+    "equal_ids_of_48": 48,
+    "per_prompt": [
+     16,
+     16,
+     16
+    ],
+    "source": "results/litert_lm_ids_lm_gpu.json",
+    "bar": "none (LiteRT-LM's own executor)"
+   },
+   "runs": 4,
+   "measured_runs": 3,
+   "failed_runs": [],
+   "seen_in_logs": {
+    "cpu_threads": [],
+    "xnnpack_flags": [],
+    "gpu_precision": [],
+    "webgpu_init_lines": [
+     2
+    ],
+    "webgpu_init_from": [
+     "serialized data"
+    ],
+    "other_gpu_api_lines": [],
+    "gpu_adapter": [
+     "Apple M4 Max, arch=metal-3, vendor=apple, backend=Metal, adapterType=Integrated GPU"
+    ],
+    "kv_cache_length": [
+     2048
+    ],
+    "sampler_handles_input": [
+     true
+    ]
+   },
+   "summary": {
+    "prefill_tokens_per_s": {
+     "median": 2848.69,
+     "min": 2809.26,
+     "max": 2901.01,
+     "n": 3
+    },
+    "decode_tokens_per_s": {
+     "median": 142.75,
+     "min": 141.88,
+     "max": 144.03,
+     "n": 3
+    },
+    "time_to_first_token_s": {
+     "median": 0.37,
+     "min": 0.36,
+     "max": 0.37,
+     "n": 3
+    },
+    "prefill_s": {
+     "median": 0.35946404200000004,
+     "min": 0.352980375,
+     "max": 0.36450816700000005,
+     "n": 3
+    },
+    "decode_s": {
+     "median": 1.793365167,
+     "min": 1.777425583,
+     "max": 1.804319375,
+     "n": 3
+    },
+    "init_total_ms": {
+     "median": 119.68,
+     "min": 117.36,
+     "max": 124.54,
+     "n": 3
+    },
+    "peak_memory_footprint_bytes": {
+     "median": 1434043784,
+     "min": 1433765256,
+     "max": 1438680456,
+     "n": 3
+    },
+    "maximum_resident_set_size_bytes": {
+     "median": 369164288,
+     "min": 367575040,
+     "max": 371245056,
+     "n": 3
+    }
+   }
+  },
+  "lm_gpu_f32": {
+   "executor": "LiteRT-LM GPU (WebGPU)",
+   "flags": [
+    "--backend=gpu",
+    "--force_f32"
+   ],
+   "cache_dir": "its own (LiteRT-LM's GPU cache file names carry no precision)",
+   "weights": "the published file",
+   "precision_and_options": "fp32 activations (`--force_f32`)",
+   "output_match": null,
+   "runs": 4,
+   "measured_runs": 3,
+   "failed_runs": [],
+   "seen_in_logs": {
+    "cpu_threads": [],
+    "xnnpack_flags": [],
+    "gpu_precision": [],
+    "webgpu_init_lines": [
+     2
+    ],
+    "webgpu_init_from": [
+     "serialized data"
+    ],
+    "other_gpu_api_lines": [],
+    "gpu_adapter": [
+     "Apple M4 Max, arch=metal-3, vendor=apple, backend=Metal, adapterType=Integrated GPU"
+    ],
+    "kv_cache_length": [
+     2048
+    ],
+    "sampler_handles_input": [
+     true
+    ]
+   },
+   "summary": {
+    "prefill_tokens_per_s": {
+     "median": 2312.6,
+     "min": 2130.61,
+     "max": 2336.39,
+     "n": 3
+    },
+    "decode_tokens_per_s": {
+     "median": 101.75,
+     "min": 100.86,
+     "max": 102.0,
+     "n": 3
+    },
+    "time_to_first_token_s": {
+     "median": 0.45,
+     "min": 0.45,
+     "max": 0.49,
+     "n": 3
+    },
+    "prefill_s": {
+     "median": 0.442791292,
+     "min": 0.43828375,
+     "max": 0.480613833,
+     "n": 3
+    },
+    "decode_s": {
+     "median": 2.516021459,
+     "min": 2.509779083,
+     "max": 2.538065625,
+     "n": 3
+    },
+    "init_total_ms": {
+     "median": 128.22,
+     "min": 114.86,
+     "max": 131.17,
+     "n": 3
+    },
+    "peak_memory_footprint_bytes": {
+     "median": 2423227760,
+     "min": 2422916536,
+     "max": 2424014192,
+     "n": 3
+    },
+    "maximum_resident_set_size_bytes": {
+     "median": 372064256,
+     "min": 371736576,
+     "max": 374718464,
+     "n": 3
+    }
+   }
+  },
+  "tapi_gpu": {
+   "executor": "Tensor API GPU (WebGPU)",
+   "flags": [
+    "--backend=tensor_api_gpu",
+    "--tensor_api_gpu_precision=fp32"
+   ],
+   "cache_dir": "shared",
+   "weights": "fp32",
+   "precision_and_options": "precision fp32",
+   "output_match": {
+    "equal_ids_of_48": 48,
+    "per_prompt": [
+     16,
+     16,
+     16
+    ],
+    "source": "results/litert_lm_ids_tapi_gpu.json",
+    "bar": ">= 44 of 48"
+   },
+   "runs": 4,
+   "measured_runs": 3,
+   "failed_runs": [],
+   "seen_in_logs": {
+    "cpu_threads": [],
+    "xnnpack_flags": [],
+    "gpu_precision": [
+     "fp32"
+    ],
+    "webgpu_init_lines": [
+     3
+    ],
+    "webgpu_init_from": [
+     "graph"
+    ],
+    "other_gpu_api_lines": [],
+    "gpu_adapter": [
+     "Apple M4 Max, arch=metal-3, vendor=apple, backend=Metal, adapterType=Integrated GPU"
+    ],
+    "kv_cache_length": [
+     2048
+    ],
+    "sampler_handles_input": [
+     false
+    ]
+   },
+   "summary": {
+    "prefill_tokens_per_s": {
+     "median": 4209.83,
+     "min": 4006.5,
+     "max": 4246.53,
+     "n": 3
+    },
+    "decode_tokens_per_s": {
+     "median": 60.88,
+     "min": 60.41,
+     "max": 61.39,
+     "n": 3
+    },
+    "time_to_first_token_s": {
+     "median": 0.26,
+     "min": 0.26,
+     "max": 0.27,
+     "n": 3
+    },
+    "prefill_s": {
+     "median": 0.243240083,
+     "min": 0.241138125,
+     "max": 0.2555845,
+     "n": 3
+    },
+    "decode_s": {
+     "median": 4.205177375,
+     "min": 4.169844375,
+     "max": 4.237408,
+     "n": 3
+    },
+    "init_total_ms": {
+     "median": 12693.47,
+     "min": 12444.28,
+     "max": 12946.16,
+     "n": 3
+    },
+    "peak_memory_footprint_bytes": {
+     "median": 25811663512,
+     "min": 25180502272,
+     "max": 25949256128,
+     "n": 3
+    },
+    "maximum_resident_set_size_bytes": {
+     "median": 18206818304,
+     "min": 18143477760,
+     "max": 18485346304,
+     "n": 3
+    }
+   }
+  },
+  "tapi_gpu_int8": {
+   "executor": "Tensor API GPU (WebGPU)",
+   "flags": [
+    "--backend=tensor_api_gpu",
+    "--tensor_api_weights_quant=int8",
+    "--tensor_api_lm_head_int8",
+    "--tensor_api_gpu_precision=fp32"
+   ],
+   "cache_dir": "shared",
+   "weights": "int8 per-channel + int8 lm_head copy",
+   "precision_and_options": "precision fp32",
+   "output_match": {
+    "equal_ids_of_48": 48,
+    "per_prompt": [
+     16,
+     16,
+     16
+    ],
+    "source": "results/litert_lm_ids_tapi_gpu_int8.json",
+    "bar": ">= 44 of 48"
+   },
+   "runs": 4,
+   "measured_runs": 3,
+   "failed_runs": [],
+   "seen_in_logs": {
+    "cpu_threads": [],
+    "xnnpack_flags": [],
+    "gpu_precision": [
+     "fp32"
+    ],
+    "webgpu_init_lines": [
+     3
+    ],
+    "webgpu_init_from": [
+     "graph"
+    ],
+    "other_gpu_api_lines": [],
+    "gpu_adapter": [
+     "Apple M4 Max, arch=metal-3, vendor=apple, backend=Metal, adapterType=Integrated GPU"
+    ],
+    "kv_cache_length": [
+     2048
+    ],
+    "sampler_handles_input": [
+     false
+    ]
+   },
+   "summary": {
+    "prefill_tokens_per_s": {
+     "median": 4059.9,
+     "min": 3765.1,
+     "max": 4110.09,
+     "n": 3
+    },
+    "decode_tokens_per_s": {
+     "median": 78.78,
+     "min": 74.13,
+     "max": 80.24,
+     "n": 3
+    },
+    "time_to_first_token_s": {
+     "median": 0.26,
+     "min": 0.26,
+     "max": 0.29,
+     "n": 3
+    },
+    "prefill_s": {
+     "median": 0.252223041,
+     "min": 0.249143083,
+     "max": 0.271971291,
+     "n": 3
+    },
+    "decode_s": {
+     "median": 3.249483667,
+     "min": 3.190250791,
+     "max": 3.453468333,
+     "n": 3
+    },
+    "init_total_ms": {
+     "median": 10765.86,
+     "min": 10217.11,
+     "max": 10781.31,
+     "n": 3
+    },
+    "peak_memory_footprint_bytes": {
+     "median": 18099316336,
+     "min": 18048083544,
+     "max": 18182432368,
+     "n": 3
+    },
+    "maximum_resident_set_size_bytes": {
+     "median": 12532465664,
+     "min": 12399083520,
+     "max": 12578209792,
+     "n": 3
+    }
+   }
+  },
+  "tapi_cpu_int8_lmf32_xf": {
+   "executor": "Tensor API CPU (XNNPACK)",
+   "flags": [
+    "--backend=tensor_api_cpu",
+    "--tensor_api_weights_quant=int8",
+    "--tensor_api_litert_lm_xnnpack_flags"
+   ],
+   "cache_dir": "shared",
+   "weights": "int8 per-channel, lm_head fp32",
+   "precision_and_options": "XNNPACK flags of LiteRT-LM's CPU executor",
+   "output_match": {
+    "equal_ids_of_48": 48,
+    "per_prompt": [
+     16,
+     16,
+     16
+    ],
+    "source": "this file, output_match.ids",
+    "bar": ">= 44 of 48",
+    "ids": [
+     {
+      "id": "p0",
+      "ids": [
+       785,
+       6722,
+       315,
+       9625,
+       374,
+       12095,
+       13,
+       576,
+       6722,
+       315,
+       15344,
+       374,
+       21718,
+       13,
+       576,
+       6722,
+       315,
+       17689,
+       374,
+       24081,
+       13
+      ]
+     },
+     {
+      "id": "p1",
+      "ids": [
+       750,
+       75698,
+       1445,
+       1648,
+       198,
+       262,
+       421,
+       308,
+       621,
+       220,
+       15,
+       510,
+       286,
+       470,
+       220,
+       15,
+       198,
+       262,
+       4409,
+       308
+      ]
+     },
+     {
+      "id": "p2",
+      "ids": [
+       641,
+       220,
+       16,
+       24,
+       21,
+       24,
+       11,
+       12677,
+       1156,
+       26120,
+       389,
+       279,
+       17330,
+       13,
+       576,
+       8954,
+       572,
+       2598,
+       279,
+       330,
+       58461,
+       7902,
+       389,
+       279,
+       17330,
+       1189,
+       576,
+       1156,
+       1697,
+       311,
+       4268,
+       389,
+       279,
+       17330
+      ]
+     }
+    ]
+   },
+   "runs": 4,
+   "measured_runs": 3,
+   "failed_runs": [],
+   "seen_in_logs": {
+    "cpu_threads": [
+     4
+    ],
+    "xnnpack_flags": [
+     "of LiteRT-LM's CPU executor"
+    ],
+    "gpu_precision": [],
+    "webgpu_init_lines": [
+     0
+    ],
+    "webgpu_init_from": [],
+    "other_gpu_api_lines": [],
+    "gpu_adapter": [],
+    "kv_cache_length": [
+     2048
+    ],
+    "sampler_handles_input": [
+     false
+    ]
+   },
+   "summary": {
+    "prefill_tokens_per_s": {
+     "median": 1199.08,
+     "min": 1144.67,
+     "max": 1202.97,
+     "n": 3
+    },
+    "decode_tokens_per_s": {
+     "median": 42.0,
+     "min": 32.55,
+     "max": 42.1,
+     "n": 3
+    },
+    "time_to_first_token_s": {
+     "median": 0.88,
+     "min": 0.87,
+     "max": 0.92,
+     "n": 3
+    },
+    "prefill_s": {
+     "median": 0.853990125,
+     "min": 0.851228542,
+     "max": 0.89458225,
+     "n": 3
+    },
+    "decode_s": {
+     "median": 6.094544708,
+     "min": 6.08076725,
+     "max": 7.865659084,
+     "n": 3
+    },
+    "init_total_ms": {
+     "median": 1553.76,
+     "min": 1541.5,
+     "max": 1586.87,
+     "n": 3
+    },
+    "peak_memory_footprint_bytes": {
+     "median": 5395783048,
+     "min": 5387935112,
+     "max": 5398535536,
+     "n": 3
+    },
+    "maximum_resident_set_size_bytes": {
+     "median": 5464965120,
+     "min": 5456232448,
+     "max": 5465653248,
+     "n": 3
+    }
+   }
+  },
+  "tapi_gpu_int8_lmf32": {
+   "executor": "Tensor API GPU (WebGPU)",
+   "flags": [
+    "--backend=tensor_api_gpu",
+    "--tensor_api_weights_quant=int8",
+    "--tensor_api_gpu_precision=fp32"
+   ],
+   "cache_dir": "shared",
+   "weights": "int8 per-channel, lm_head fp32",
+   "precision_and_options": "precision fp32",
+   "output_match": {
+    "equal_ids_of_48": 48,
+    "per_prompt": [
+     16,
+     16,
+     16
+    ],
+    "source": "this file, output_match.ids",
+    "bar": ">= 44 of 48",
+    "ids": [
+     {
+      "id": "p0",
+      "ids": [
+       785,
+       6722,
+       315,
+       9625,
+       374,
+       12095,
+       13,
+       576,
+       6722,
+       315,
+       15344,
+       374,
+       21718,
+       13,
+       576,
+       6722,
+       315,
+       17689,
+       374,
+       24081,
+       13
+      ]
+     },
+     {
+      "id": "p1",
+      "ids": [
+       750,
+       75698,
+       1445,
+       1648,
+       198,
+       262,
+       421,
+       308,
+       621,
+       220,
+       15,
+       510,
+       286,
+       470,
+       220,
+       15,
+       198,
+       262,
+       4409,
+       308
+      ]
+     },
+     {
+      "id": "p2",
+      "ids": [
+       641,
+       220,
+       16,
+       24,
+       21,
+       24,
+       11,
+       12677,
+       1156,
+       26120,
+       389,
+       279,
+       17330,
+       13,
+       576,
+       8954,
+       572,
+       2598,
+       279,
+       330,
+       58461,
+       7902,
+       389,
+       279,
+       17330,
+       1189,
+       576,
+       1156,
+       1697,
+       311,
+       4268,
+       389,
+       279,
+       17330
+      ]
+     }
+    ]
+   },
+   "runs": 4,
+   "measured_runs": 3,
+   "failed_runs": [],
+   "seen_in_logs": {
+    "cpu_threads": [],
+    "xnnpack_flags": [],
+    "gpu_precision": [
+     "fp32"
+    ],
+    "webgpu_init_lines": [
+     3
+    ],
+    "webgpu_init_from": [
+     "graph"
+    ],
+    "other_gpu_api_lines": [],
+    "gpu_adapter": [
+     "Apple M4 Max, arch=metal-3, vendor=apple, backend=Metal, adapterType=Integrated GPU"
+    ],
+    "kv_cache_length": [
+     2048
+    ],
+    "sampler_handles_input": [
+     false
+    ]
+   },
+   "summary": {
+    "prefill_tokens_per_s": {
+     "median": 4043.78,
+     "min": 4024.28,
+     "max": 4055.64,
+     "n": 3
+    },
+    "decode_tokens_per_s": {
+     "median": 74.51,
+     "min": 74.18,
+     "max": 74.7,
+     "n": 3
+    },
+    "time_to_first_token_s": {
+     "median": 0.27,
+     "min": 0.27,
+     "max": 0.27,
+     "n": 3
+    },
+    "prefill_s": {
+     "median": 0.253228208,
+     "min": 0.252487666,
+     "max": 0.254455708,
+     "n": 3
+    },
+    "decode_s": {
+     "median": 3.435805208,
+     "min": 3.426921208,
+     "max": 3.451048334,
+     "n": 3
+    },
+    "init_total_ms": {
+     "median": 10732.2,
+     "min": 10623.51,
+     "max": 10975.35,
+     "n": 3
+    },
+    "peak_memory_footprint_bytes": {
+     "median": 19393636144,
+     "min": 19294038000,
+     "max": 19601926392,
+     "n": 3
+    },
+    "maximum_resident_set_size_bytes": {
+     "median": 13027246080,
+     "min": 12984139776,
+     "max": 13161545728,
+     "n": 3
+    }
+   }
+  },
+  "tapi_gpu_fp16": {
+   "executor": "Tensor API GPU (WebGPU)",
+   "flags": [
+    "--backend=tensor_api_gpu",
+    "--tensor_api_gpu_precision=fp16"
+   ],
+   "cache_dir": "shared",
+   "weights": "fp32",
+   "precision_and_options": "precision fp16",
+   "output_match": {
+    "equal_ids_of_48": 0,
+    "per_prompt": [
+     0,
+     0,
+     0
+    ],
+    "source": "this file, output_match.ids",
+    "bar": ">= 44 of 48",
+    "ids": [
+     {
+      "id": "p0",
+      "ids": [
+       785,
+       6722,
+       315,
+       9625,
+       374,
+       624,
+       624,
+       624,
+       624,
+       624,
+       624,
+       624,
+       624,
+       624,
+       624,
+       624,
+       624,
+       624,
+       624,
+       624,
+       624
+      ]
+     },
+     {
+      "id": "p1",
+      "ids": [
+       750,
+       75698,
+       1445,
+       1648,
+       5183,
+       5183,
+       5183,
+       5183,
+       5183,
+       5183,
+       5183,
+       5183,
+       5183,
+       5183,
+       5183,
+       5183,
+       5183,
+       5183,
+       5183,
+       5183
+      ]
+     },
+     {
+      "id": "p2",
+      "ids": [
+       641,
+       220,
+       16,
+       24,
+       21,
+       24,
+       11,
+       12677,
+       1156,
+       26120,
+       389,
+       279,
+       17330,
+       13,
+       576,
+       8954,
+       572,
+       2598,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ]
+     }
+    ]
+   },
+   "runs": 4,
+   "measured_runs": 3,
+   "failed_runs": [],
+   "seen_in_logs": {
+    "cpu_threads": [],
+    "xnnpack_flags": [],
+    "gpu_precision": [
+     "fp16"
+    ],
+    "webgpu_init_lines": [
+     3
+    ],
+    "webgpu_init_from": [
+     "graph"
+    ],
+    "other_gpu_api_lines": [],
+    "gpu_adapter": [
+     "Apple M4 Max, arch=metal-3, vendor=apple, backend=Metal, adapterType=Integrated GPU"
+    ],
+    "kv_cache_length": [
+     2048
+    ],
+    "sampler_handles_input": [
+     false
+    ]
+   },
+   "summary": {
+    "prefill_tokens_per_s": {
+     "median": 5299.52,
+     "min": 5262.93,
+     "max": 5376.99,
+     "n": 3
+    },
+    "decode_tokens_per_s": {
+     "median": 85.68,
+     "min": 81.42,
+     "max": 85.99,
+     "n": 3
+    },
+    "time_to_first_token_s": {
+     "median": 0.2,
+     "min": 0.2,
+     "max": 0.21,
+     "n": 3
+    },
+    "prefill_s": {
+     "median": 0.19322495900000003,
+     "min": 0.190441,
+     "max": 0.1945685,
+     "n": 3
+    },
+    "decode_s": {
+     "median": 2.987763667,
+     "min": 2.977107833,
+     "max": 3.144106834,
+     "n": 3
+    },
+    "init_total_ms": {
+     "median": 8287.55,
+     "min": 8181.63,
+     "max": 8322.06,
+     "n": 3
+    },
+    "peak_memory_footprint_bytes": {
+     "median": 17532563384,
+     "min": 17531596728,
+     "max": 17877790792,
+     "n": 3
+    },
+    "maximum_resident_set_size_bytes": {
+     "median": 13872431104,
+     "min": 13816004608,
+     "max": 13967048704,
+     "n": 3
+    }
+   }
+  }
+ },
+ "runs": [
+  {
+   "seq": 1,
+   "form": "lm_cpu",
+   "run_of_form": 1,
+   "discarded": true,
+   "part": "rotation",
+   "start_jst": "01:57:18",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 11,
+   "prefill_tokens_per_s": 475.7,
+   "decode_tokens_per_s": 28.79,
+   "time_to_first_token_s": 2.19,
+   "prefill_s": 2.152625708,
+   "decode_s": 8.893473208,
+   "init_total_ms": 105.12,
+   "peak_memory_footprint_bytes": 1196149088,
+   "maximum_resident_set_size_bytes": 1887993856,
+   "init_ms": {
+    "Executor": 79.4,
+    "LLM metadata": 0.22,
+    "Model assets": 1.15,
+    "Session": 0.02,
+    "Tokenizer": 103.53,
+    "Total": 105.12
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 2,
+   "form": "tapi_cpu_xf",
+   "run_of_form": 1,
+   "discarded": true,
+   "part": "rotation",
+   "start_jst": "01:57:34",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 11,
+   "prefill_tokens_per_s": 935.1,
+   "decode_tokens_per_s": 31.06,
+   "time_to_first_token_s": 1.13,
+   "prefill_s": 1.095071,
+   "decode_s": 8.2409835,
+   "init_total_ms": 957.52,
+   "peak_memory_footprint_bytes": 11102893592,
+   "maximum_resident_set_size_bytes": 11163664384,
+   "init_ms": {
+    "Executor": 955.31,
+    "LLM metadata": 0.35,
+    "Model assets": 1.5,
+    "Session": 0.01,
+    "Tokenizer": 123.64,
+    "Total": 957.52
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 3,
+   "form": "tapi_cpu_int8_xf",
+   "run_of_form": 1,
+   "discarded": true,
+   "part": "rotation",
+   "start_jst": "01:57:50",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 8,
+   "prefill_tokens_per_s": 1150.46,
+   "decode_tokens_per_s": 49.39,
+   "time_to_first_token_s": 0.91,
+   "prefill_s": 0.8900794580000001,
+   "decode_s": 5.183584792,
+   "init_total_ms": 1804.06,
+   "peak_memory_footprint_bytes": 5079604424,
+   "maximum_resident_set_size_bytes": 5146886144,
+   "init_ms": {
+    "Executor": 1802.27,
+    "LLM metadata": 0.27,
+    "Model assets": 1.17,
+    "Session": 0.01,
+    "Tokenizer": 115.76,
+    "Total": 1804.06
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 4,
+   "form": "tapi_cpu",
+   "run_of_form": 1,
+   "discarded": true,
+   "part": "rotation",
+   "start_jst": "01:58:03",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 10,
+   "prefill_tokens_per_s": 1003.37,
+   "decode_tokens_per_s": 31.31,
+   "time_to_first_token_s": 1.05,
+   "prefill_s": 1.020562542,
+   "decode_s": 8.176774333,
+   "init_total_ms": 951.29,
+   "peak_memory_footprint_bytes": 11103401544,
+   "maximum_resident_set_size_bytes": 11165302784,
+   "init_ms": {
+    "Executor": 948.98,
+    "LLM metadata": 0.35,
+    "Model assets": 1.6,
+    "Session": 0.01,
+    "Tokenizer": 130.05,
+    "Total": 951.29
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 5,
+   "form": "tapi_cpu_int8",
+   "run_of_form": 1,
+   "discarded": true,
+   "part": "rotation",
+   "start_jst": "01:58:18",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 8,
+   "prefill_tokens_per_s": 1128.85,
+   "decode_tokens_per_s": 49.07,
+   "time_to_first_token_s": 0.93,
+   "prefill_s": 0.9071157500000001,
+   "decode_s": 5.217257959,
+   "init_total_ms": 1795.95,
+   "peak_memory_footprint_bytes": 4762524152,
+   "maximum_resident_set_size_bytes": 4831248384,
+   "init_ms": {
+    "Executor": 1793.71,
+    "LLM metadata": 0.39,
+    "Model assets": 1.52,
+    "Session": 0.01,
+    "Tokenizer": 112.67,
+    "Total": 1795.95
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 6,
+   "form": "lm_gpu",
+   "run_of_form": 1,
+   "discarded": true,
+   "part": "rotation",
+   "start_jst": "01:58:31",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 3,
+   "prefill_tokens_per_s": 1832.5,
+   "decode_tokens_per_s": 139.81,
+   "time_to_first_token_s": 0.57,
+   "prefill_s": 0.5587980410000001,
+   "decode_s": 1.831041,
+   "init_total_ms": 126.22,
+   "peak_memory_footprint_bytes": 1435174280,
+   "maximum_resident_set_size_bytes": 370262016,
+   "init_ms": {
+    "Executor": 125.01,
+    "LLM metadata": 0.32,
+    "Model assets": 0.59,
+    "Session": 0.01,
+    "Tokenizer": 118.91,
+    "Total": 126.22
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 7,
+   "form": "lm_gpu_f32",
+   "run_of_form": 1,
+   "discarded": true,
+   "part": "rotation",
+   "start_jst": "01:58:39",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 4,
+   "prefill_tokens_per_s": 1626.05,
+   "decode_tokens_per_s": 98.84,
+   "time_to_first_token_s": 0.64,
+   "prefill_s": 0.629746125,
+   "decode_s": 2.590128958,
+   "init_total_ms": 565.86,
+   "peak_memory_footprint_bytes": 2750695104,
+   "maximum_resident_set_size_bytes": 1292779520,
+   "init_ms": {
+    "Executor": 564.86,
+    "LLM metadata": 0.32,
+    "Model assets": 0.33,
+    "Session": 0.01,
+    "Tokenizer": 122.66,
+    "Total": 565.86
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 8,
+   "form": "tapi_gpu",
+   "run_of_form": 1,
+   "discarded": true,
+   "part": "rotation",
+   "start_jst": "01:58:49",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 16,
+   "prefill_tokens_per_s": 4147.91,
+   "decode_tokens_per_s": 60.01,
+   "time_to_first_token_s": 0.26,
+   "prefill_s": 0.24687125000000001,
+   "decode_s": 4.266225375,
+   "init_total_ms": 10958.64,
+   "peak_memory_footprint_bytes": 25223739600,
+   "maximum_resident_set_size_bytes": 18193825792,
+   "init_ms": {
+    "Executor": 10956.56,
+    "LLM metadata": 0.3,
+    "Model assets": 1.47,
+    "Session": 0.01,
+    "Tokenizer": 136.67,
+    "Total": 10958.64
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 9,
+   "form": "tapi_gpu_int8",
+   "run_of_form": 1,
+   "discarded": true,
+   "part": "rotation",
+   "start_jst": "01:59:10",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 14,
+   "prefill_tokens_per_s": 3994.89,
+   "decode_tokens_per_s": 78.5,
+   "time_to_first_token_s": 0.27,
+   "prefill_s": 0.25632774999999997,
+   "decode_s": 3.261163416,
+   "init_total_ms": 10687.21,
+   "peak_memory_footprint_bytes": 18128430704,
+   "maximum_resident_set_size_bytes": 12480053248,
+   "init_ms": {
+    "Executor": 10685.11,
+    "LLM metadata": 0.31,
+    "Model assets": 1.45,
+    "Session": 0.01,
+    "Tokenizer": 126.31,
+    "Total": 10687.21
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 10,
+   "form": "tapi_cpu_xf",
+   "run_of_form": 2,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "01:59:29",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 11,
+   "prefill_tokens_per_s": 996.71,
+   "decode_tokens_per_s": 30.11,
+   "time_to_first_token_s": 1.06,
+   "prefill_s": 1.027379458,
+   "decode_s": 8.501364416,
+   "init_total_ms": 964.64,
+   "peak_memory_footprint_bytes": 11099977264,
+   "maximum_resident_set_size_bytes": 11161911296,
+   "init_ms": {
+    "Executor": 962.03,
+    "LLM metadata": 0.49,
+    "Model assets": 1.67,
+    "Session": 0.01,
+    "Tokenizer": 133.29,
+    "Total": 964.64
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 11,
+   "form": "tapi_cpu_int8_xf",
+   "run_of_form": 2,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "01:59:45",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 10,
+   "prefill_tokens_per_s": 397.22,
+   "decode_tokens_per_s": 48.62,
+   "time_to_first_token_s": 2.6,
+   "prefill_s": 2.577918,
+   "decode_s": 5.265501,
+   "init_total_ms": 1879.46,
+   "peak_memory_footprint_bytes": 5083307184,
+   "maximum_resident_set_size_bytes": 5151768576,
+   "init_ms": {
+    "Executor": 1877.63,
+    "LLM metadata": 0.26,
+    "Model assets": 1.26,
+    "Session": 0.01,
+    "Tokenizer": 126.72,
+    "Total": 1879.46
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 12,
+   "form": "tapi_cpu",
+   "run_of_form": 2,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:00:00",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 11,
+   "prefill_tokens_per_s": 1005.09,
+   "decode_tokens_per_s": 29.61,
+   "time_to_first_token_s": 1.05,
+   "prefill_s": 1.01881275,
+   "decode_s": 8.645638875,
+   "init_total_ms": 940.81,
+   "peak_memory_footprint_bytes": 11103204960,
+   "maximum_resident_set_size_bytes": 11163893760,
+   "init_ms": {
+    "Executor": 937.97,
+    "LLM metadata": 0.39,
+    "Model assets": 2.1,
+    "Session": 0.01,
+    "Tokenizer": 121.45,
+    "Total": 940.81
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 13,
+   "form": "tapi_cpu_int8",
+   "run_of_form": 2,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:00:16",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 8,
+   "prefill_tokens_per_s": 1269.71,
+   "decode_tokens_per_s": 48.96,
+   "time_to_first_token_s": 0.83,
+   "prefill_s": 0.8064822500000001,
+   "decode_s": 5.229184084,
+   "init_total_ms": 1949.28,
+   "peak_memory_footprint_bytes": 4764113352,
+   "maximum_resident_set_size_bytes": 4834000896,
+   "init_ms": {
+    "Executor": 1947.13,
+    "LLM metadata": 0.34,
+    "Model assets": 1.49,
+    "Session": 0.01,
+    "Tokenizer": 119.13,
+    "Total": 1949.28
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 14,
+   "form": "lm_gpu",
+   "run_of_form": 2,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:00:29",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 2,
+   "prefill_tokens_per_s": 2809.26,
+   "decode_tokens_per_s": 144.03,
+   "time_to_first_token_s": 0.37,
+   "prefill_s": 0.36450816700000005,
+   "decode_s": 1.777425583,
+   "init_total_ms": 119.68,
+   "peak_memory_footprint_bytes": 1434043784,
+   "maximum_resident_set_size_bytes": 369164288,
+   "init_ms": {
+    "Executor": 118.74,
+    "LLM metadata": 0.26,
+    "Model assets": 0.35,
+    "Session": 0.01,
+    "Tokenizer": 117.74,
+    "Total": 119.68
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 15,
+   "form": "lm_gpu_f32",
+   "run_of_form": 2,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:00:36",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 3,
+   "prefill_tokens_per_s": 2130.61,
+   "decode_tokens_per_s": 100.86,
+   "time_to_first_token_s": 0.49,
+   "prefill_s": 0.480613833,
+   "decode_s": 2.538065625,
+   "init_total_ms": 131.17,
+   "peak_memory_footprint_bytes": 2423227760,
+   "maximum_resident_set_size_bytes": 371736576,
+   "init_ms": {
+    "Executor": 130.06,
+    "LLM metadata": 0.29,
+    "Model assets": 0.35,
+    "Session": 0.01,
+    "Tokenizer": 130.16,
+    "Total": 131.17
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 16,
+   "form": "tapi_gpu",
+   "run_of_form": 2,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:00:45",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 17,
+   "prefill_tokens_per_s": 4006.5,
+   "decode_tokens_per_s": 60.41,
+   "time_to_first_token_s": 0.27,
+   "prefill_s": 0.2555845,
+   "decode_s": 4.237408,
+   "init_total_ms": 12693.47,
+   "peak_memory_footprint_bytes": 25180502272,
+   "maximum_resident_set_size_bytes": 18485346304,
+   "init_ms": {
+    "Executor": 12691.27,
+    "LLM metadata": 0.35,
+    "Model assets": 1.51,
+    "Session": 0.01,
+    "Tokenizer": 136.92,
+    "Total": 12693.47
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 17,
+   "form": "tapi_gpu_int8",
+   "run_of_form": 2,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:01:07",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 14,
+   "prefill_tokens_per_s": 4059.9,
+   "decode_tokens_per_s": 78.78,
+   "time_to_first_token_s": 0.26,
+   "prefill_s": 0.252223041,
+   "decode_s": 3.249483667,
+   "init_total_ms": 10217.11,
+   "peak_memory_footprint_bytes": 18048083544,
+   "maximum_resident_set_size_bytes": 12399083520,
+   "init_ms": {
+    "Executor": 10214.48,
+    "LLM metadata": 0.4,
+    "Model assets": 1.91,
+    "Session": 0.01,
+    "Tokenizer": 122.09,
+    "Total": 10217.11
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 18,
+   "form": "lm_cpu",
+   "run_of_form": 2,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:01:26",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 11,
+   "prefill_tokens_per_s": 472.99,
+   "decode_tokens_per_s": 29.03,
+   "time_to_first_token_s": 2.2,
+   "prefill_s": 2.164952584,
+   "decode_s": 8.819341375,
+   "init_total_ms": 117.42,
+   "peak_memory_footprint_bytes": 1197836664,
+   "maximum_resident_set_size_bytes": 1892057088,
+   "init_ms": {
+    "Executor": 89.21,
+    "LLM metadata": 0.35,
+    "Model assets": 1.47,
+    "Session": 0.01,
+    "Tokenizer": 115.35,
+    "Total": 117.42
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 19,
+   "form": "tapi_cpu_int8_xf",
+   "run_of_form": 3,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:01:42",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 10,
+   "prefill_tokens_per_s": 1248.83,
+   "decode_tokens_per_s": 36.83,
+   "time_to_first_token_s": 0.85,
+   "prefill_s": 0.819965458,
+   "decode_s": 6.950935584,
+   "init_total_ms": 1914.73,
+   "peak_memory_footprint_bytes": 4761901512,
+   "maximum_resident_set_size_bytes": 4832739328,
+   "init_ms": {
+    "Executor": 1912.22,
+    "LLM metadata": 0.43,
+    "Model assets": 1.64,
+    "Session": 0.01,
+    "Tokenizer": 121.34,
+    "Total": 1914.73
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 20,
+   "form": "tapi_cpu",
+   "run_of_form": 3,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:01:57",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 10,
+   "prefill_tokens_per_s": 1065.88,
+   "decode_tokens_per_s": 31.48,
+   "time_to_first_token_s": 0.99,
+   "prefill_s": 0.960713,
+   "decode_s": 8.132928708,
+   "init_total_ms": 924.13,
+   "peak_memory_footprint_bytes": 11103237704,
+   "maximum_resident_set_size_bytes": 11163942912,
+   "init_ms": {
+    "Executor": 922.48,
+    "LLM metadata": 0.22,
+    "Model assets": 1.12,
+    "Session": 0.01,
+    "Tokenizer": 116.16,
+    "Total": 924.13
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 21,
+   "form": "tapi_cpu_int8",
+   "run_of_form": 3,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:02:12",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 8,
+   "prefill_tokens_per_s": 1209.3,
+   "decode_tokens_per_s": 48.85,
+   "time_to_first_token_s": 0.87,
+   "prefill_s": 0.8467713750000001,
+   "decode_s": 5.24071825,
+   "init_total_ms": 1796.72,
+   "peak_memory_footprint_bytes": 4761131464,
+   "maximum_resident_set_size_bytes": 4829855744,
+   "init_ms": {
+    "Executor": 1794.66,
+    "LLM metadata": 0.32,
+    "Model assets": 1.43,
+    "Session": 0.01,
+    "Tokenizer": 109.35,
+    "Total": 1796.72
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 22,
+   "form": "lm_gpu",
+   "run_of_form": 3,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:02:25",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 3,
+   "prefill_tokens_per_s": 2901.01,
+   "decode_tokens_per_s": 141.88,
+   "time_to_first_token_s": 0.36,
+   "prefill_s": 0.352980375,
+   "decode_s": 1.804319375,
+   "init_total_ms": 117.36,
+   "peak_memory_footprint_bytes": 1438680456,
+   "maximum_resident_set_size_bytes": 371245056,
+   "init_ms": {
+    "Executor": 113.12,
+    "LLM metadata": 0.3,
+    "Model assets": 0.34,
+    "Session": 0.01,
+    "Tokenizer": 116.45,
+    "Total": 117.36
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 23,
+   "form": "lm_gpu_f32",
+   "run_of_form": 3,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:02:33",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 3,
+   "prefill_tokens_per_s": 2336.39,
+   "decode_tokens_per_s": 101.75,
+   "time_to_first_token_s": 0.45,
+   "prefill_s": 0.43828375,
+   "decode_s": 2.516021459,
+   "init_total_ms": 128.22,
+   "peak_memory_footprint_bytes": 2422916536,
+   "maximum_resident_set_size_bytes": 374718464,
+   "init_ms": {
+    "Executor": 119.18,
+    "LLM metadata": 0.3,
+    "Model assets": 0.45,
+    "Session": 0.01,
+    "Tokenizer": 127.16,
+    "Total": 128.22
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 24,
+   "form": "tapi_gpu",
+   "run_of_form": 3,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:02:41",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 17,
+   "prefill_tokens_per_s": 4246.53,
+   "decode_tokens_per_s": 61.39,
+   "time_to_first_token_s": 0.26,
+   "prefill_s": 0.241138125,
+   "decode_s": 4.169844375,
+   "init_total_ms": 12444.28,
+   "peak_memory_footprint_bytes": 25949256128,
+   "maximum_resident_set_size_bytes": 18206818304,
+   "init_ms": {
+    "Executor": 12441.95,
+    "LLM metadata": 0.37,
+    "Model assets": 1.57,
+    "Session": 0.01,
+    "Tokenizer": 125.97,
+    "Total": 12444.28
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 25,
+   "form": "tapi_gpu_int8",
+   "run_of_form": 3,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:03:03",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 15,
+   "prefill_tokens_per_s": 3765.1,
+   "decode_tokens_per_s": 74.13,
+   "time_to_first_token_s": 0.29,
+   "prefill_s": 0.271971291,
+   "decode_s": 3.453468333,
+   "init_total_ms": 10781.31,
+   "peak_memory_footprint_bytes": 18182432368,
+   "maximum_resident_set_size_bytes": 12532465664,
+   "init_ms": {
+    "Executor": 10779.04,
+    "LLM metadata": 0.35,
+    "Model assets": 1.52,
+    "Session": 0.01,
+    "Tokenizer": 112.17,
+    "Total": 10781.31
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 26,
+   "form": "lm_cpu",
+   "run_of_form": 3,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:03:23",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 11,
+   "prefill_tokens_per_s": 664.43,
+   "decode_tokens_per_s": 28.17,
+   "time_to_first_token_s": 1.58,
+   "prefill_s": 1.5411635,
+   "decode_s": 9.089173541,
+   "init_total_ms": 122.54,
+   "peak_memory_footprint_bytes": 1198852424,
+   "maximum_resident_set_size_bytes": 1891942400,
+   "init_ms": {
+    "Executor": 92.81,
+    "LLM metadata": 0.43,
+    "Model assets": 1.56,
+    "Session": 0.01,
+    "Tokenizer": 120.29,
+    "Total": 122.54
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 27,
+   "form": "tapi_cpu_xf",
+   "run_of_form": 3,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:03:39",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 12,
+   "prefill_tokens_per_s": 964.13,
+   "decode_tokens_per_s": 25.06,
+   "time_to_first_token_s": 1.1,
+   "prefill_s": 1.062100167,
+   "decode_s": 10.214560791,
+   "init_total_ms": 963.84,
+   "peak_memory_footprint_bytes": 11101517336,
+   "maximum_resident_set_size_bytes": 11164893184,
+   "init_ms": {
+    "Executor": 961.94,
+    "LLM metadata": 0.23,
+    "Model assets": 1.36,
+    "Session": 0.01,
+    "Tokenizer": 124.71,
+    "Total": 963.84
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 28,
+   "form": "tapi_cpu",
+   "run_of_form": 4,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:03:56",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 10,
+   "prefill_tokens_per_s": 978.95,
+   "decode_tokens_per_s": 31.5,
+   "time_to_first_token_s": 1.08,
+   "prefill_s": 1.046022,
+   "decode_s": 8.127163291,
+   "init_total_ms": 924.69,
+   "peak_memory_footprint_bytes": 11102664240,
+   "maximum_resident_set_size_bytes": 11165466624,
+   "init_ms": {
+    "Executor": 922.52,
+    "LLM metadata": 0.34,
+    "Model assets": 1.37,
+    "Session": 0.01,
+    "Tokenizer": 121.11,
+    "Total": 924.69
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 29,
+   "form": "tapi_cpu_int8",
+   "run_of_form": 4,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:04:12",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 8,
+   "prefill_tokens_per_s": 1090.31,
+   "decode_tokens_per_s": 48.91,
+   "time_to_first_token_s": 0.96,
+   "prefill_s": 0.9391809170000001,
+   "decode_s": 5.233990167,
+   "init_total_ms": 1804.19,
+   "peak_memory_footprint_bytes": 5081488584,
+   "maximum_resident_set_size_bytes": 5148721152,
+   "init_ms": {
+    "Executor": 1801.73,
+    "LLM metadata": 0.44,
+    "Model assets": 1.65,
+    "Session": 0.01,
+    "Tokenizer": 113.15,
+    "Total": 1804.19
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 30,
+   "form": "lm_gpu",
+   "run_of_form": 4,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:04:25",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 2,
+   "prefill_tokens_per_s": 2848.69,
+   "decode_tokens_per_s": 142.75,
+   "time_to_first_token_s": 0.37,
+   "prefill_s": 0.35946404200000004,
+   "decode_s": 1.793365167,
+   "init_total_ms": 124.54,
+   "peak_memory_footprint_bytes": 1433765256,
+   "maximum_resident_set_size_bytes": 367575040,
+   "init_ms": {
+    "Executor": 123.34,
+    "LLM metadata": 0.33,
+    "Model assets": 0.47,
+    "Session": 0.01,
+    "Tokenizer": 117.17,
+    "Total": 124.54
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 31,
+   "form": "lm_gpu_f32",
+   "run_of_form": 4,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:04:32",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 3,
+   "prefill_tokens_per_s": 2312.6,
+   "decode_tokens_per_s": 102.0,
+   "time_to_first_token_s": 0.45,
+   "prefill_s": 0.442791292,
+   "decode_s": 2.509779083,
+   "init_total_ms": 114.86,
+   "peak_memory_footprint_bytes": 2424014192,
+   "maximum_resident_set_size_bytes": 372064256,
+   "init_ms": {
+    "Executor": 112.94,
+    "LLM metadata": 0.28,
+    "Model assets": 0.33,
+    "Session": 0.01,
+    "Tokenizer": 113.97,
+    "Total": 114.86
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 32,
+   "form": "tapi_gpu",
+   "run_of_form": 4,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:04:40",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 18,
+   "prefill_tokens_per_s": 4209.83,
+   "decode_tokens_per_s": 60.88,
+   "time_to_first_token_s": 0.26,
+   "prefill_s": 0.243240083,
+   "decode_s": 4.205177375,
+   "init_total_ms": 12946.16,
+   "peak_memory_footprint_bytes": 25811663512,
+   "maximum_resident_set_size_bytes": 18143477760,
+   "init_ms": {
+    "Executor": 12943.94,
+    "LLM metadata": 0.38,
+    "Model assets": 1.48,
+    "Session": 0.01,
+    "Tokenizer": 125.23,
+    "Total": 12946.16
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 33,
+   "form": "tapi_gpu_int8",
+   "run_of_form": 4,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:05:03",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 14,
+   "prefill_tokens_per_s": 4110.09,
+   "decode_tokens_per_s": 80.24,
+   "time_to_first_token_s": 0.26,
+   "prefill_s": 0.249143083,
+   "decode_s": 3.190250791,
+   "init_total_ms": 10765.86,
+   "peak_memory_footprint_bytes": 18099316336,
+   "maximum_resident_set_size_bytes": 12578209792,
+   "init_ms": {
+    "Executor": 10763.08,
+    "LLM metadata": 0.68,
+    "Model assets": 1.77,
+    "Session": 0.01,
+    "Tokenizer": 129.56,
+    "Total": 10765.86
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 34,
+   "form": "lm_cpu",
+   "run_of_form": 4,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:05:22",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 11,
+   "prefill_tokens_per_s": 640.4,
+   "decode_tokens_per_s": 28.77,
+   "time_to_first_token_s": 1.63,
+   "prefill_s": 1.599008458,
+   "decode_s": 8.896802125,
+   "init_total_ms": 119.36,
+   "peak_memory_footprint_bytes": 1196296520,
+   "maximum_resident_set_size_bytes": 1889959936,
+   "init_ms": {
+    "Executor": 86.66,
+    "LLM metadata": 0.36,
+    "Model assets": 1.74,
+    "Session": 0.01,
+    "Tokenizer": 117.02,
+    "Total": 119.36
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 35,
+   "form": "tapi_cpu_xf",
+   "run_of_form": 4,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:05:38",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 12,
+   "prefill_tokens_per_s": 993.96,
+   "decode_tokens_per_s": 25.21,
+   "time_to_first_token_s": 1.07,
+   "prefill_s": 1.030222083,
+   "decode_s": 10.154344417,
+   "init_total_ms": 934.86,
+   "peak_memory_footprint_bytes": 11103335984,
+   "maximum_resident_set_size_bytes": 11164090368,
+   "init_ms": {
+    "Executor": 932.68,
+    "LLM metadata": 0.34,
+    "Model assets": 1.54,
+    "Session": 0.01,
+    "Tokenizer": 116.68,
+    "Total": 934.86
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 36,
+   "form": "tapi_cpu_int8_xf",
+   "run_of_form": 4,
+   "discarded": false,
+   "part": "rotation",
+   "start_jst": "02:05:56",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 8,
+   "prefill_tokens_per_s": 1220.91,
+   "decode_tokens_per_s": 48.88,
+   "time_to_first_token_s": 0.86,
+   "prefill_s": 0.838720958,
+   "decode_s": 5.237409417,
+   "init_total_ms": 1822.9,
+   "peak_memory_footprint_bytes": 5235842344,
+   "maximum_resident_set_size_bytes": 5305155584,
+   "init_ms": {
+    "Executor": 1820.6,
+    "LLM metadata": 0.38,
+    "Model assets": 1.6,
+    "Session": 0.01,
+    "Tokenizer": 118.09,
+    "Total": 1822.9
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 37,
+   "form": "tapi_cpu_int8_lmf32_xf",
+   "run_of_form": 1,
+   "discarded": true,
+   "part": "extra forms",
+   "start_jst": "02:06:09",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 8,
+   "prefill_tokens_per_s": 1264.08,
+   "decode_tokens_per_s": 40.94,
+   "time_to_first_token_s": 0.83,
+   "prefill_s": 0.810072834,
+   "decode_s": 6.253768375,
+   "init_total_ms": 1610.27,
+   "peak_memory_footprint_bytes": 5392965024,
+   "maximum_resident_set_size_bytes": 5462163456,
+   "init_ms": {
+    "Executor": 1608.57,
+    "LLM metadata": 0.22,
+    "Model assets": 1.16,
+    "Session": 0.01,
+    "Tokenizer": 120.02,
+    "Total": 1610.27
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 38,
+   "form": "tapi_gpu_int8_lmf32",
+   "run_of_form": 1,
+   "discarded": true,
+   "part": "extra forms",
+   "start_jst": "02:06:23",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 15,
+   "prefill_tokens_per_s": 3746.69,
+   "decode_tokens_per_s": 73.83,
+   "time_to_first_token_s": 0.29,
+   "prefill_s": 0.273307792,
+   "decode_s": 3.467362083,
+   "init_total_ms": 11257.84,
+   "peak_memory_footprint_bytes": 19615475936,
+   "maximum_resident_set_size_bytes": 13178208256,
+   "init_ms": {
+    "Executor": 11255.49,
+    "LLM metadata": 0.37,
+    "Model assets": 1.6,
+    "Session": 0.01,
+    "Tokenizer": 125.71,
+    "Total": 11257.84
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 39,
+   "form": "tapi_gpu_fp16",
+   "run_of_form": 1,
+   "discarded": true,
+   "part": "extra forms",
+   "start_jst": "02:06:43",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 13,
+   "prefill_tokens_per_s": 5140.03,
+   "decode_tokens_per_s": 85.54,
+   "time_to_first_token_s": 0.21,
+   "prefill_s": 0.19922079199999998,
+   "decode_s": 2.992648791,
+   "init_total_ms": 10270.26,
+   "peak_memory_footprint_bytes": 17516244920,
+   "maximum_resident_set_size_bytes": 13854588928,
+   "init_ms": {
+    "Executor": 10268.14,
+    "LLM metadata": 0.34,
+    "Model assets": 1.41,
+    "Session": 0.01,
+    "Tokenizer": 126.62,
+    "Total": 10270.26
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 40,
+   "form": "tapi_gpu_int8_lmf32",
+   "run_of_form": 2,
+   "discarded": false,
+   "part": "extra forms",
+   "start_jst": "02:07:01",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 15,
+   "prefill_tokens_per_s": 4043.78,
+   "decode_tokens_per_s": 74.18,
+   "time_to_first_token_s": 0.27,
+   "prefill_s": 0.253228208,
+   "decode_s": 3.451048334,
+   "init_total_ms": 10975.35,
+   "peak_memory_footprint_bytes": 19294038000,
+   "maximum_resident_set_size_bytes": 12984139776,
+   "init_ms": {
+    "Executor": 10973.04,
+    "LLM metadata": 0.38,
+    "Model assets": 1.61,
+    "Session": 0.01,
+    "Tokenizer": 117.07,
+    "Total": 10975.35
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 41,
+   "form": "tapi_gpu_fp16",
+   "run_of_form": 2,
+   "discarded": false,
+   "part": "extra forms",
+   "start_jst": "02:07:21",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 12,
+   "prefill_tokens_per_s": 5299.52,
+   "decode_tokens_per_s": 85.99,
+   "time_to_first_token_s": 0.2,
+   "prefill_s": 0.19322495900000003,
+   "decode_s": 2.977107833,
+   "init_total_ms": 8322.06,
+   "peak_memory_footprint_bytes": 17532563384,
+   "maximum_resident_set_size_bytes": 13816004608,
+   "init_ms": {
+    "Executor": 8319.61,
+    "LLM metadata": 0.55,
+    "Model assets": 1.55,
+    "Session": 0.01,
+    "Tokenizer": 124.08,
+    "Total": 8322.06
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 42,
+   "form": "tapi_cpu_int8_lmf32_xf",
+   "run_of_form": 2,
+   "discarded": false,
+   "part": "extra forms",
+   "start_jst": "02:07:38",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 9,
+   "prefill_tokens_per_s": 1202.97,
+   "decode_tokens_per_s": 42.1,
+   "time_to_first_token_s": 0.87,
+   "prefill_s": 0.851228542,
+   "decode_s": 6.08076725,
+   "init_total_ms": 1553.76,
+   "peak_memory_footprint_bytes": 5395783048,
+   "maximum_resident_set_size_bytes": 5464965120,
+   "init_ms": {
+    "Executor": 1551.19,
+    "LLM metadata": 0.61,
+    "Model assets": 1.62,
+    "Session": 0.01,
+    "Tokenizer": 132.14,
+    "Total": 1553.76
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 43,
+   "form": "tapi_gpu_fp16",
+   "run_of_form": 3,
+   "discarded": false,
+   "part": "extra forms",
+   "start_jst": "02:07:52",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 11,
+   "prefill_tokens_per_s": 5376.99,
+   "decode_tokens_per_s": 85.68,
+   "time_to_first_token_s": 0.2,
+   "prefill_s": 0.190441,
+   "decode_s": 2.987763667,
+   "init_total_ms": 8181.63,
+   "peak_memory_footprint_bytes": 17531596728,
+   "maximum_resident_set_size_bytes": 13872431104,
+   "init_ms": {
+    "Executor": 8179.69,
+    "LLM metadata": 0.27,
+    "Model assets": 1.31,
+    "Session": 0.01,
+    "Tokenizer": 119.77,
+    "Total": 8181.63
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 44,
+   "form": "tapi_cpu_int8_lmf32_xf",
+   "run_of_form": 3,
+   "discarded": false,
+   "part": "extra forms",
+   "start_jst": "02:08:08",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 9,
+   "prefill_tokens_per_s": 1144.67,
+   "decode_tokens_per_s": 42.0,
+   "time_to_first_token_s": 0.92,
+   "prefill_s": 0.89458225,
+   "decode_s": 6.094544708,
+   "init_total_ms": 1586.87,
+   "peak_memory_footprint_bytes": 5387935112,
+   "maximum_resident_set_size_bytes": 5456232448,
+   "init_ms": {
+    "Executor": 1585.18,
+    "LLM metadata": 0.23,
+    "Model assets": 1.17,
+    "Session": 0.01,
+    "Tokenizer": 118.44,
+    "Total": 1586.87
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 45,
+   "form": "tapi_gpu_int8_lmf32",
+   "run_of_form": 3,
+   "discarded": false,
+   "part": "extra forms",
+   "start_jst": "02:08:22",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 14,
+   "prefill_tokens_per_s": 4055.64,
+   "decode_tokens_per_s": 74.51,
+   "time_to_first_token_s": 0.27,
+   "prefill_s": 0.252487666,
+   "decode_s": 3.435805208,
+   "init_total_ms": 10623.51,
+   "peak_memory_footprint_bytes": 19393636144,
+   "maximum_resident_set_size_bytes": 13027246080,
+   "init_ms": {
+    "Executor": 10621.37,
+    "LLM metadata": 0.29,
+    "Model assets": 1.45,
+    "Session": 0.01,
+    "Tokenizer": 111.47,
+    "Total": 10623.51
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 46,
+   "form": "tapi_cpu_int8_lmf32_xf",
+   "run_of_form": 4,
+   "discarded": false,
+   "part": "extra forms",
+   "start_jst": "02:08:42",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 10,
+   "prefill_tokens_per_s": 1199.08,
+   "decode_tokens_per_s": 32.55,
+   "time_to_first_token_s": 0.88,
+   "prefill_s": 0.853990125,
+   "decode_s": 7.865659084,
+   "init_total_ms": 1541.5,
+   "peak_memory_footprint_bytes": 5398535536,
+   "maximum_resident_set_size_bytes": 5465653248,
+   "init_ms": {
+    "Executor": 1539.04,
+    "LLM metadata": 0.4,
+    "Model assets": 1.74,
+    "Session": 0.01,
+    "Tokenizer": 113.66,
+    "Total": 1541.5
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 47,
+   "form": "tapi_gpu_int8_lmf32",
+   "run_of_form": 4,
+   "discarded": false,
+   "part": "extra forms",
+   "start_jst": "02:08:57",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 14,
+   "prefill_tokens_per_s": 4024.28,
+   "decode_tokens_per_s": 74.7,
+   "time_to_first_token_s": 0.27,
+   "prefill_s": 0.254455708,
+   "decode_s": 3.426921208,
+   "init_total_ms": 10732.2,
+   "peak_memory_footprint_bytes": 19601926392,
+   "maximum_resident_set_size_bytes": 13161545728,
+   "init_ms": {
+    "Executor": 10730.3,
+    "LLM metadata": 0.28,
+    "Model assets": 1.27,
+    "Session": 0.01,
+    "Tokenizer": 113.24,
+    "Total": 10732.2
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 48,
+   "form": "tapi_gpu_fp16",
+   "run_of_form": 4,
+   "discarded": false,
+   "part": "extra forms",
+   "start_jst": "02:09:17",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 11,
+   "prefill_tokens_per_s": 5262.93,
+   "decode_tokens_per_s": 81.42,
+   "time_to_first_token_s": 0.21,
+   "prefill_s": 0.1945685,
+   "decode_s": 3.144106834,
+   "init_total_ms": 8287.55,
+   "peak_memory_footprint_bytes": 17877790792,
+   "maximum_resident_set_size_bytes": 13967048704,
+   "init_ms": {
+    "Executor": 8285.28,
+    "LLM metadata": 0.37,
+    "Model assets": 1.55,
+    "Session": 0.01,
+    "Tokenizer": 126.73,
+    "Total": 8287.55
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 49,
+   "form": "lm_cpu",
+   "run_of_form": 5,
+   "discarded": false,
+   "part": "extension",
+   "start_jst": "02:09:34",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 10,
+   "prefill_tokens_per_s": 644.08,
+   "decode_tokens_per_s": 29.34,
+   "time_to_first_token_s": 1.62,
+   "prefill_s": 1.589871083,
+   "decode_s": 8.726231041,
+   "init_total_ms": 108.55,
+   "peak_memory_footprint_bytes": 1196329312,
+   "maximum_resident_set_size_bytes": 1888190464,
+   "init_ms": {
+    "Executor": 77.17,
+    "LLM metadata": 0.25,
+    "Model assets": 1.35,
+    "Session": 0.01,
+    "Tokenizer": 106.66,
+    "Total": 108.55
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 50,
+   "form": "tapi_cpu",
+   "run_of_form": 5,
+   "discarded": false,
+   "part": "extension",
+   "start_jst": "02:09:49",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 11,
+   "prefill_tokens_per_s": 1069.98,
+   "decode_tokens_per_s": 30.4,
+   "time_to_first_token_s": 0.99,
+   "prefill_s": 0.957025708,
+   "decode_s": 8.420511,
+   "init_total_ms": 904.36,
+   "peak_memory_footprint_bytes": 11098781256,
+   "maximum_resident_set_size_bytes": 11161501696,
+   "init_ms": {
+    "Executor": 902.38,
+    "LLM metadata": 0.38,
+    "Model assets": 1.29,
+    "Session": 0.01,
+    "Tokenizer": 129.99,
+    "Total": 904.36
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 51,
+   "form": "lm_cpu",
+   "run_of_form": 6,
+   "discarded": false,
+   "part": "extension",
+   "start_jst": "02:10:05",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 11,
+   "prefill_tokens_per_s": 512.97,
+   "decode_tokens_per_s": 29.66,
+   "time_to_first_token_s": 2.03,
+   "prefill_s": 1.996226084,
+   "decode_s": 8.632427084,
+   "init_total_ms": 115.09,
+   "peak_memory_footprint_bytes": 1195952480,
+   "maximum_resident_set_size_bytes": 1888485376,
+   "init_ms": {
+    "Executor": 86.15,
+    "LLM metadata": 0.27,
+    "Model assets": 1.33,
+    "Session": 0.01,
+    "Tokenizer": 113.22,
+    "Total": 115.09
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 52,
+   "form": "tapi_cpu",
+   "run_of_form": 6,
+   "discarded": false,
+   "part": "extension",
+   "start_jst": "02:10:21",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 10,
+   "prefill_tokens_per_s": 1084.26,
+   "decode_tokens_per_s": 30.32,
+   "time_to_first_token_s": 0.98,
+   "prefill_s": 0.944423208,
+   "decode_s": 8.442257625,
+   "init_total_ms": 901.54,
+   "peak_memory_footprint_bytes": 11098994248,
+   "maximum_resident_set_size_bytes": 11161763840,
+   "init_ms": {
+    "Executor": 899.83,
+    "LLM metadata": 0.23,
+    "Model assets": 1.21,
+    "Session": 0.01,
+    "Tokenizer": 125.9,
+    "Total": 901.54
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 53,
+   "form": "lm_cpu",
+   "run_of_form": 7,
+   "discarded": false,
+   "part": "extension",
+   "start_jst": "02:10:36",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 10,
+   "prefill_tokens_per_s": 687.71,
+   "decode_tokens_per_s": 30.32,
+   "time_to_first_token_s": 1.52,
+   "prefill_s": 1.488992041,
+   "decode_s": 8.442240792,
+   "init_total_ms": 120.99,
+   "peak_memory_footprint_bytes": 1211074936,
+   "maximum_resident_set_size_bytes": 1902919680,
+   "init_ms": {
+    "Executor": 84.74,
+    "LLM metadata": 0.24,
+    "Model assets": 1.32,
+    "Session": 0.01,
+    "Tokenizer": 119.18,
+    "Total": 120.99
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 54,
+   "form": "tapi_cpu",
+   "run_of_form": 7,
+   "discarded": false,
+   "part": "extension",
+   "start_jst": "02:10:51",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 11,
+   "prefill_tokens_per_s": 1017.84,
+   "decode_tokens_per_s": 30.33,
+   "time_to_first_token_s": 1.04,
+   "prefill_s": 1.006048458,
+   "decode_s": 8.440702458,
+   "init_total_ms": 925.05,
+   "peak_memory_footprint_bytes": 11101419056,
+   "maximum_resident_set_size_bytes": 11162173440,
+   "init_ms": {
+    "Executor": 922.95,
+    "LLM metadata": 0.41,
+    "Model assets": 1.34,
+    "Session": 0.01,
+    "Tokenizer": 118.86,
+    "Total": 925.05
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 55,
+   "form": "lm_cpu",
+   "run_of_form": 8,
+   "discarded": false,
+   "part": "extension",
+   "start_jst": "02:11:07",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 10,
+   "prefill_tokens_per_s": 691.95,
+   "decode_tokens_per_s": 30.09,
+   "time_to_first_token_s": 1.51,
+   "prefill_s": 1.479866917,
+   "decode_s": 8.508145291,
+   "init_total_ms": 125.44,
+   "peak_memory_footprint_bytes": 1197410656,
+   "maximum_resident_set_size_bytes": 1891139584,
+   "init_ms": {
+    "Executor": 87.4,
+    "LLM metadata": 0.34,
+    "Model assets": 1.42,
+    "Session": 0.01,
+    "Tokenizer": 123.44,
+    "Total": 125.44
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 56,
+   "form": "tapi_cpu",
+   "run_of_form": 8,
+   "discarded": false,
+   "part": "extension",
+   "start_jst": "02:11:22",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 11,
+   "prefill_tokens_per_s": 1059.75,
+   "decode_tokens_per_s": 29.49,
+   "time_to_first_token_s": 1.0,
+   "prefill_s": 0.9662653330000001,
+   "decode_s": 8.679766,
+   "init_total_ms": 994.31,
+   "peak_memory_footprint_bytes": 11101369904,
+   "maximum_resident_set_size_bytes": 11164155904,
+   "init_ms": {
+    "Executor": 992.16,
+    "LLM metadata": 0.37,
+    "Model assets": 1.49,
+    "Session": 0.01,
+    "Tokenizer": 129.23,
+    "Total": 994.31
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 57,
+   "form": "lm_cpu",
+   "run_of_form": 9,
+   "discarded": false,
+   "part": "extension",
+   "start_jst": "02:11:38",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 12,
+   "prefill_tokens_per_s": 683.19,
+   "decode_tokens_per_s": 24.89,
+   "time_to_first_token_s": 1.54,
+   "prefill_s": 1.498846417,
+   "decode_s": 10.284720875,
+   "init_total_ms": 124.72,
+   "peak_memory_footprint_bytes": 1207470504,
+   "maximum_resident_set_size_bytes": 1901330432,
+   "init_ms": {
+    "Executor": 87.79,
+    "LLM metadata": 0.5,
+    "Model assets": 1.49,
+    "Session": 0.01,
+    "Tokenizer": 122.51,
+    "Total": 124.72
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  },
+  {
+   "seq": 58,
+   "form": "tapi_cpu",
+   "run_of_form": 9,
+   "discarded": false,
+   "part": "extension",
+   "start_jst": "02:11:55",
+   "ok": true,
+   "rc": 0,
+   "wall_s": 11,
+   "prefill_tokens_per_s": 1047.55,
+   "decode_tokens_per_s": 30.43,
+   "time_to_first_token_s": 1.01,
+   "prefill_s": 0.977523625,
+   "decode_s": 8.411368916,
+   "init_total_ms": 1077.23,
+   "peak_memory_footprint_bytes": 11102893640,
+   "maximum_resident_set_size_bytes": 11163598848,
+   "init_ms": {
+    "Executor": 1075.4,
+    "LLM metadata": 0.23,
+    "Model assets": 1.3,
+    "Session": 0.01,
+    "Tokenizer": 136.62,
+    "Total": 1077.23
+   },
+   "prefill_tokens": 1024,
+   "decode_tokens": 256
+  }
+ ]
+}
