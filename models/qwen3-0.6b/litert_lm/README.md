@@ -79,8 +79,41 @@ Flags of this backend:
 | `--tensor_api_litert_lm_xnnpack_flags` | `false` | CPU: the XNNPACK flags of LiteRT-LM's own CPU executor (the default flags plus dynamic fully-connected and the latest operators) instead of LiteRT's defaults |
 | `--tensor_api_log_ids` | `true` | log every token id the executor receives |
 | `--tensor_api_delegation_report` | `false` | compile once more and log the delegation metrics |
+| `--tensor_api_attention` | `raw` | `sdpa`: the attention core as the `odml.scaled_dot_product_attention` composite (the graph option of iteration 3) |
+| `--tensor_api_norms` | `raw` | `composite`: every RMSNorm as the `odml.rms_norm` composite (iteration 3) |
+| `--tensor_api_gpu_share_constants` | `false` | GPU: share the constant tensors (weights) between the signatures |
+| `--tensor_api_gpu_program_cache` | `false` | GPU: serialize the compiled programs (and, with shared constants, the converted weights) to `--cache_dir` |
+| `--tensor_api_gpu_external_caches` | `off` | GPU: the KV caches as external tensor patterns, with the external tensors mode off (`stock`, as LiteRT-LM's GPU executor) or on (`runner`, as `LitertDynamicRunner`'s feedback loops) |
+| `--tensor_api_gpu_litert_lm_options` | `false` | GPU: the other compile options of LiteRT-LM's GPU executor (see below) |
+| `--tensor_api_gpu_command_buffer_steps` | `-1` | GPU: steps of command buffer preparation in advance (`-1` leaves the option unset) |
+| `--tensor_api_xnnpack_weight_cache` | `false` | CPU: an XNNPACK weight cache file in `--cache_dir` |
+| `--tensor_api_model_file` | `off` | `fresh`: write the serialized model to `--cache_dir` and compile the mapped file (the graph, its weight tensors and the in-memory model are released before the compile); `reuse`: as `fresh`, and a file of the same key is compiled without loading the checkpoint or building the graph |
+| `--tensor_api_report` | `false` | log the init phases, the memory footprint at each stage and the time of each part of a decode step |
+| `--tensor_api_report_hold_s` | `0` | with the report: sleep this many seconds after the decode steps are logged (to inspect the process from outside) |
 
 The KV cache length is LiteRT-LM's `max_num_tokens` (`--max_num_tokens`, or the file's value).
+
+`--tensor_api_gpu_litert_lm_options` sets the options LiteRT-LM's GPU executor passes in
+`runtime/executor/llm_executor_settings_utils.cc` and `litert_compiled_model_executor_utils.cc`
+beyond precision, shared constants, caches and the KV cache patterns: the WebGPU backend, infinite
+float capping, buffer weights and Metal argument buffers on Apple, madvise of the original shared
+tensors, weight conversion on the GPU, the fully-delegated hint, source-quantized FC / convolution
+ops, shader optimization, 2 upload threads and 1 compile thread, and, when LiteRT-LM runs its
+benchmark, the active wait for synchronous execution and the wait for the weight conversion.
+
+The cache files (`--tensor_api_model_file`, `--tensor_api_xnnpack_weight_cache`,
+`--tensor_api_gpu_program_cache`) carry a key made of the checkpoint's size and modification time,
+the weight quantization, the lm_head copy, the graph forms, the prefill lengths and the KV cache
+length (and, for the compiled caches, the accelerator options).
+
+With `--tensor_api_report` the executor logs lines starting with `tensor_api report:`: the time of
+each init phase (checkpoint loading and quantization, graph building, the model file, the
+environment and options, the compile, the rest), the process's physical footprint, its peak so far
+and its graphics-tagged part (macOS `task_info`) after each stage, and for every decode turn the
+median, minimum and maximum over its steps of: writing the step inputs and binding the caches,
+`Run`, taking the cache outputs, reading the logits back (`GetOutput`, `Lock`, copy), copying
+them to the returned buffer, the whole call, and the time from the previous call's return
+(LiteRT-LM's sampler and session).
 
 ## Limits
 

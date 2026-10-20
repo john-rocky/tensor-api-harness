@@ -18,6 +18,7 @@
 #ifndef TENSOR_API_QWEN3_0_6B_TENSOR_API_EXECUTOR_H_
 #define TENSOR_API_QWEN3_0_6B_TENSOR_API_EXECUTOR_H_
 
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -40,6 +41,30 @@
 #include "tensor/tensor.h"  // from @litert
 
 namespace litert::tensor::examples::qwen3 {
+
+// Where the serialized model lives while it is compiled and run.
+enum class ModelFileMode {
+  // The executor's own buffer (the compiled model reads it in place).
+  kMemory,
+  // A file in the cache directory, written at every start; the graph, its
+  // weight tensors and the buffer are released before the compile, which
+  // maps the file.
+  kFresh,
+  // As kFresh, but an existing file of the same key is compiled without
+  // loading the checkpoint or building the graph.
+  kReuse,
+};
+
+// GPU: how the KV cache tensors are presented to the GPU accelerator.
+enum class GpuExternalCaches {
+  kOff,
+  // As LiteRT-LM's GPU executor: no external tensors mode, with the caches
+  // as external tensor patterns.
+  kStock,
+  // As LitertDynamicRunner's feedback loops: external tensors mode, with the
+  // caches as external tensor patterns.
+  kRunner,
+};
 
 struct TensorApiExecutorOptions {
   // model.safetensors of Qwen/Qwen3-0.6B.
@@ -66,6 +91,32 @@ struct TensorApiExecutorOptions {
   bool log_ids = true;
   // Compiles the model once more and logs the delegation metrics.
   bool delegation_report = false;
+  // Graph forms (Qwen3Config): the attention core as the
+  // odml.scaled_dot_product_attention composite, every RMSNorm as the
+  // odml.rms_norm composite. Off = the raw-op graph.
+  bool sdpa_attention = false;
+  bool rms_norm_composite = false;
+  // GPU only: constant tensors (weights) shared between the signatures.
+  bool gpu_share_constants = false;
+  // GPU only: compiled programs (and, with shared constants, the converted
+  // weights) serialized to the cache directory under this form's key.
+  bool gpu_program_cache = false;
+  GpuExternalCaches gpu_external_caches = GpuExternalCaches::kOff;
+  // GPU only: the other compile options of LiteRT-LM's GPU executor
+  // (CreateCompilationOptions and SetCommonGpuOptions), without the KV cache
+  // patterns and the command buffer preparation.
+  bool gpu_litert_lm_options = false;
+  // GPU only: steps of command buffer preparation in advance (-1 = not set).
+  int gpu_command_buffer_steps = -1;
+  // CPU only: XNNPACK weight cache file in the cache directory.
+  bool xnnpack_weight_cache = false;
+  ModelFileMode model_file = ModelFileMode::kMemory;
+  // Logs the init phases, the memory footprint at each stage and the time of
+  // each part of a decode step.
+  bool report = false;
+  // With report: seconds to sleep after the decode breakdown is logged (for
+  // an outside footprint of the process).
+  int report_hold_s = 0;
 };
 
 class TensorApiExecutor : public ::litert::lm::LlmExecutor {
@@ -73,6 +124,7 @@ class TensorApiExecutor : public ::litert::lm::LlmExecutor {
   static absl::StatusOr<std::unique_ptr<TensorApiExecutor>> Create(
       const ::litert::lm::LlmExecutorSettings& settings,
       const TensorApiExecutorOptions& options);
+  ~TensorApiExecutor() override;
 
   absl::Status Prefill(const ::litert::lm::ExecutorInputs& inputs) override;
   absl::Status Prefill(
@@ -119,10 +171,25 @@ class TensorApiExecutor : public ::litert::lm::LlmExecutor {
   absl::StatusOr<std::string> GetProfileSummary() override;
 
  private:
+  // Microseconds of the parts of one DecodeLogits call (report only).
+  struct StepTimes {
+    double inputs = 0;    // step inputs written, caches bound
+    double run = 0;       // Run
+    double caches = 0;    // cache outputs taken as the next inputs
+    double readback = 0;  // logits GetOutput + Lock + copy to the host
+    double copy_out = 0;  // logits copied to the returned buffer
+    double total = 0;     // the whole call
+    double outside = -1;  // from the previous call's return (-1: none)
+  };
+
   TensorApiExecutor(const ::litert::lm::LlmExecutorSettings& settings,
                     const TensorApiExecutorOptions& options);
 
   absl::Status Initialize();
+  // The key of this form's serialized model and caches.
+  absl::StatusOr<std::string> ModelKey() const;
+  // Logs the decode step times collected since the last summary.
+  void ReportDecodeSteps();
   ::litert::lm::ProcessedTokens& Tokens();
   // Drops processed tokens past the current step (after a rewind), keeping
   // the token at the current step pending.
@@ -131,8 +198,8 @@ class TensorApiExecutor : public ::litert::lm::LlmExecutor {
   // prefill signatures.
   absl::Status RunPrefill(absl::Span<const int> ids, int start);
   // Runs `id` at `position` through the decode signature and copies the
-  // logits to logits_.
-  absl::Status RunDecode(int id, int position);
+  // logits to logits_. Fills `times` (when not null).
+  absl::Status RunDecode(int id, int position, StepTimes* times = nullptr);
   // Waits until the last call's caches are written: on the GPU, Run can
   // return once the work is enqueued, and locking an output buffer waits.
   absl::Status WaitForCaches();
@@ -163,6 +230,11 @@ class TensorApiExecutor : public ::litert::lm::LlmExecutor {
   std::unique_ptr<::litert::lm::LlmContext> llm_context_;
   std::vector<float> logits_;
   ::litert::TensorBuffer logits_host_;
+  // Report only.
+  std::vector<StepTimes> step_times_;
+  std::optional<std::chrono::steady_clock::time_point> last_decode_end_;
+  bool prefill_reported_ = false;
+  bool decode_reported_ = false;
 };
 
 }  // namespace litert::tensor::examples::qwen3

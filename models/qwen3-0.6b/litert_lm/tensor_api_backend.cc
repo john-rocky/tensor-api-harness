@@ -56,6 +56,38 @@ ABSL_FLAG(bool, tensor_api_log_ids, true,
           "Log the token ids the executor receives");
 ABSL_FLAG(bool, tensor_api_delegation_report, false,
           "Compile the model once more and log its delegation metrics");
+ABSL_FLAG(std::string, tensor_api_attention, "raw",
+          "raw|sdpa: the attention core as raw ops or as the "
+          "odml.scaled_dot_product_attention composite");
+ABSL_FLAG(std::string, tensor_api_norms, "raw",
+          "raw|composite: every RMSNorm as raw ops or as the odml.rms_norm "
+          "composite");
+ABSL_FLAG(bool, tensor_api_gpu_share_constants, false,
+          "GPU: share constant tensors (weights) between the signatures");
+ABSL_FLAG(bool, tensor_api_gpu_program_cache, false,
+          "GPU: serialize the compiled programs (and, with shared constants, "
+          "the converted weights) to --cache_dir");
+ABSL_FLAG(std::string, tensor_api_gpu_external_caches, "off",
+          "off|stock|runner: the KV caches as external tensor patterns, with "
+          "the external tensors mode off (as LiteRT-LM's GPU executor) or on "
+          "(as LitertDynamicRunner's feedback loops)");
+ABSL_FLAG(bool, tensor_api_gpu_litert_lm_options, false,
+          "GPU: the other compile options of LiteRT-LM's GPU executor (without "
+          "the KV cache patterns and the command buffer preparation)");
+ABSL_FLAG(int, tensor_api_gpu_command_buffer_steps, -1,
+          "GPU: steps of command buffer preparation in advance (-1 = not set)");
+ABSL_FLAG(bool, tensor_api_xnnpack_weight_cache, false,
+          "CPU: XNNPACK weight cache file in --cache_dir");
+ABSL_FLAG(std::string, tensor_api_model_file, "off",
+          "off|fresh|reuse: keep the serialized model in memory, or write it "
+          "to --cache_dir and compile the mapped file (reuse: an existing "
+          "file of the same key skips loading and building)");
+ABSL_FLAG(bool, tensor_api_report, false,
+          "Log the init phases, the memory footprint at each stage and the "
+          "time of each part of a decode step");
+ABSL_FLAG(int, tensor_api_report_hold_s, 0,
+          "With --tensor_api_report: sleep this many seconds after logging "
+          "the decode steps");
 
 namespace {
 
@@ -96,6 +128,52 @@ absl::StatusOr<qwen3::TensorApiExecutorOptions> OptionsFromFlags(
       absl::GetFlag(FLAGS_tensor_api_litert_lm_xnnpack_flags);
   options.log_ids = absl::GetFlag(FLAGS_tensor_api_log_ids);
   options.delegation_report = absl::GetFlag(FLAGS_tensor_api_delegation_report);
+  const std::string attention = absl::GetFlag(FLAGS_tensor_api_attention);
+  if (attention != "raw" && attention != "sdpa") {
+    return absl::InvalidArgumentError(
+        "--tensor_api_attention must be raw|sdpa");
+  }
+  options.sdpa_attention = attention == "sdpa";
+  const std::string norms = absl::GetFlag(FLAGS_tensor_api_norms);
+  if (norms != "raw" && norms != "composite") {
+    return absl::InvalidArgumentError(
+        "--tensor_api_norms must be raw|composite");
+  }
+  options.rms_norm_composite = norms == "composite";
+  options.gpu_share_constants =
+      absl::GetFlag(FLAGS_tensor_api_gpu_share_constants);
+  options.gpu_program_cache = absl::GetFlag(FLAGS_tensor_api_gpu_program_cache);
+  const std::string external =
+      absl::GetFlag(FLAGS_tensor_api_gpu_external_caches);
+  if (external == "off") {
+    options.gpu_external_caches = qwen3::GpuExternalCaches::kOff;
+  } else if (external == "stock") {
+    options.gpu_external_caches = qwen3::GpuExternalCaches::kStock;
+  } else if (external == "runner") {
+    options.gpu_external_caches = qwen3::GpuExternalCaches::kRunner;
+  } else {
+    return absl::InvalidArgumentError(
+        "--tensor_api_gpu_external_caches must be off|stock|runner");
+  }
+  options.gpu_litert_lm_options =
+      absl::GetFlag(FLAGS_tensor_api_gpu_litert_lm_options);
+  options.gpu_command_buffer_steps =
+      absl::GetFlag(FLAGS_tensor_api_gpu_command_buffer_steps);
+  options.xnnpack_weight_cache =
+      absl::GetFlag(FLAGS_tensor_api_xnnpack_weight_cache);
+  const std::string model_file = absl::GetFlag(FLAGS_tensor_api_model_file);
+  if (model_file == "off") {
+    options.model_file = qwen3::ModelFileMode::kMemory;
+  } else if (model_file == "fresh") {
+    options.model_file = qwen3::ModelFileMode::kFresh;
+  } else if (model_file == "reuse") {
+    options.model_file = qwen3::ModelFileMode::kReuse;
+  } else {
+    return absl::InvalidArgumentError(
+        "--tensor_api_model_file must be off|fresh|reuse");
+  }
+  options.report = absl::GetFlag(FLAGS_tensor_api_report);
+  options.report_hold_s = absl::GetFlag(FLAGS_tensor_api_report_hold_s);
   return options;
 }
 
