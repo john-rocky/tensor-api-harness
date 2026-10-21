@@ -96,6 +96,14 @@ struct TensorApiExecutorOptions {
   // odml.rms_norm composite. Off = the raw-op graph.
   bool sdpa_attention = false;
   bool rms_norm_composite = false;
+  // The attention core as the odml.sdpa_transposed composite with the value
+  // caches transposed, and with the param tensor and the bool mask
+  // (Qwen3Config::sdpa_transposed and sdpa_param_tensor).
+  bool sdpa_transposed = false;
+  bool sdpa_param_tensor = false;
+  // The raw attention ops with the value caches stored transposed
+  // (Qwen3Config::transposed_value_cache).
+  bool transposed_value_cache = false;
   // GPU only: constant tensors (weights) shared between the signatures.
   bool gpu_share_constants = false;
   // GPU only: compiled programs (and, with shared constants, the converted
@@ -225,6 +233,8 @@ class TensorApiExecutor : public ::litert::lm::LlmExecutor {
   std::vector<TensorHandle> key_caches_;
   std::vector<TensorHandle> value_caches_;
   TensorHandle zero_cache_;
+  // The value caches' zeros: zero_cache_ unless they are transposed.
+  TensorHandle zero_value_cache_;
   // Token ids whose keys and values are in the caches, by position.
   std::vector<int> cached_ids_;
   std::unique_ptr<::litert::lm::LlmContext> llm_context_;

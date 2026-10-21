@@ -78,8 +78,8 @@ Flags of this backend:
 | `--tensor_api_num_threads` | `0` | CPU threads; 0 takes `number_of_threads` from the executor settings |
 | `--tensor_api_litert_lm_xnnpack_flags` | `false` | CPU: the XNNPACK flags of LiteRT-LM's own CPU executor (the default flags plus dynamic fully-connected and the latest operators) instead of LiteRT's defaults |
 | `--tensor_api_log_ids` | `true` | log every token id the executor receives |
-| `--tensor_api_delegation_report` | `false` | compile once more and log the delegation metrics |
-| `--tensor_api_attention` | `raw` | `sdpa`: the attention core as the `odml.scaled_dot_product_attention` composite (the graph option of iteration 3) |
+| `--tensor_api_delegation_report` | `false` | compile once more and log the delegation metrics and the buffer type the compiled model gives the `attention_mask`, `param_tensor` and `key_cache_0` inputs of each signature |
+| `--tensor_api_attention` | `raw` | `sdpa`: the attention core as the `odml.scaled_dot_product_attention` composite (the graph option of iteration 3); `sdpa_transposed`: as the `odml.sdpa_transposed` composite, with the value caches stored transposed; `sdpa_transposed_param`: the same with the `param_tensor` input and a bool mask; `raw_vt`: the raw ops with the value caches stored transposed (iteration 11) |
 | `--tensor_api_norms` | `raw` | `composite`: every RMSNorm as the `odml.rms_norm` composite (iteration 3) |
 | `--tensor_api_gpu_share_constants` | `false` | GPU: share the constant tensors (weights) between the signatures |
 | `--tensor_api_gpu_program_cache` | `false` | GPU: serialize the compiled programs (and, with shared constants, the converted weights) to `--cache_dir` |

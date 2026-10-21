@@ -57,8 +57,11 @@ ABSL_FLAG(bool, tensor_api_log_ids, true,
 ABSL_FLAG(bool, tensor_api_delegation_report, false,
           "Compile the model once more and log its delegation metrics");
 ABSL_FLAG(std::string, tensor_api_attention, "raw",
-          "raw|sdpa: the attention core as raw ops or as the "
-          "odml.scaled_dot_product_attention composite");
+          "raw|raw_vt|sdpa|sdpa_transposed|sdpa_transposed_param: the "
+          "attention core as raw ops (raw_vt: with the value caches stored "
+          "transposed), as the odml.scaled_dot_product_attention composite, "
+          "or as the odml.sdpa_transposed composite (value caches transposed; "
+          "_param adds the param tensor and the bool mask)");
 ABSL_FLAG(std::string, tensor_api_norms, "raw",
           "raw|composite: every RMSNorm as raw ops or as the odml.rms_norm "
           "composite");
@@ -129,11 +132,17 @@ absl::StatusOr<qwen3::TensorApiExecutorOptions> OptionsFromFlags(
   options.log_ids = absl::GetFlag(FLAGS_tensor_api_log_ids);
   options.delegation_report = absl::GetFlag(FLAGS_tensor_api_delegation_report);
   const std::string attention = absl::GetFlag(FLAGS_tensor_api_attention);
-  if (attention != "raw" && attention != "sdpa") {
+  if (attention != "raw" && attention != "raw_vt" && attention != "sdpa" &&
+      attention != "sdpa_transposed" && attention != "sdpa_transposed_param") {
     return absl::InvalidArgumentError(
-        "--tensor_api_attention must be raw|sdpa");
+        "--tensor_api_attention must be "
+        "raw|raw_vt|sdpa|sdpa_transposed|sdpa_transposed_param");
   }
+  options.transposed_value_cache = attention == "raw_vt";
   options.sdpa_attention = attention == "sdpa";
+  options.sdpa_transposed = attention == "sdpa_transposed" ||
+                            attention == "sdpa_transposed_param";
+  options.sdpa_param_tensor = attention == "sdpa_transposed_param";
   const std::string norms = absl::GetFlag(FLAGS_tensor_api_norms);
   if (norms != "raw" && norms != "composite") {
     return absl::InvalidArgumentError(

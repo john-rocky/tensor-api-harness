@@ -44,3 +44,91 @@ Notes:
 - The sdpa composite is the only form that fails on the CPU; the same graph runs on Metal with every node
   delegated and passes the text match. The fold with the mask as a fourth operand was not tried in an
   un-folded presentation.
+
+## Iteration 11 — the attention core as the `odml.sdpa_transposed` composite
+
+Two more forms (`--attention` of `graph/qwen3_main`, `--tensor_api_attention` of the LiteRT-LM
+executor; `iterations/ITERATION_11.md`). They follow the composite boundary (operands and
+attributes) LiteRT-Torch exports for it (`litert_torch/generative/export_hf/experimental/composites/sdpa.py`,
+`scaled_dot_product_attention_transposed`, main at `117ac7b8`):
+
+- `sdpa_transposed`: operands query × 1/√128 `[1, 16, S, 128]`, the key cache `[1, 8, KV, 128]`,
+  the value cache `[1, 8, 128, KV]` and the additive fp32 mask `[1, 1, S, KV]`; attributes
+  `k_ts_idx` 2, `v_ts_idx` 3 and `is_causal` false (this graph's choice, so the mask decides; a
+  text-only LiteRT-Torch export sets it true); no `scale` attribute. The value caches of both
+  signatures are stored transposed and written at a second position input. Inside the region the
+  decomposition packs the two query heads of each KV group along the sequence axis, so it reads the
+  caches as they are.
+- `sdpa_transposed_param`: the same, plus `param_tensor` (`[1, 1, 1, 7]` int32
+  `{start, end, end, end − start, 0, 0, 0}`, the values the composite reads in a LiteRT-Torch export
+  after its graph sets element 3) as the fifth operand, the mask as bool (the additive mask equal to
+  0) and `is_causal` and `from_cache_update` true on both signatures. The caches are still written with
+  `DYNAMIC_UPDATE_SLICE`; LiteRT-Torch's GPU export writes them with the `odml.cache_update` composite.
+  The decomposition does not read the param tensor.
+
+Harness runner (fp32 weights; CPU = XNNPACK, Metal = fp32 delegate precision with buffer storage;
+prompts of 5, 4 and 18 tokens = p0, p1, p2, KV cache 64, greedy 16). Decode ms/token per run = the
+median of the three per-prompt medians, timed through the logits readback; the forms in turn in one
+quiet window (the machine's measurement lock held, so no other job's measurement or build started),
+the first pass discarded (the second window; a shorter set from the first window is in
+`sdpa_transposed.json`). "Mask input buffer" is the buffer the compiled model
+creates for the `attention_mask` input of the prefill and decode signatures.
+
+| form | backend | nodes delegated / total, partitions | mask input buffer | ids /48 (p0, p1, p2) | decode ms/token |
+|---|---|---|---|---|---|
+| sdpa_transposed | CPU | CpuAccelerator 3656 / 3882, 170 | decode: host memory; prefill: host memory | 48 (16, 16, 16) | — |
+| sdpa_transposed_param, first try (param element 3 = 0) | CPU | CpuAccelerator 3600 / 3938, 170 | decode: host memory; prefill: host memory | 48 (16, 16, 16) | — |
+| raw | Metal fp32 | GPU Metal 3994 / 3994, 2 | decode: Metal buffer packed; prefill: Metal buffer packed | 48 (16, 16, 16) | 8.113 (8 runs, 8.003 to 8.291) |
+| sdpa | Metal fp32 | GPU Metal 4274 / 4274, 2 | decode: Metal buffer packed; prefill: Metal buffer packed | 48 (16, 16, 16) | 8.625 (8 runs, 8.475 to 8.786) |
+| sdpa_transposed | Metal fp32 | GPU Metal 3882 / 3882, 2 | decode: Metal buffer packed; prefill: Metal buffer packed | 0 (0, 0, 0) | 7.836 (8 runs, 7.758 to 8.218) |
+| sdpa_transposed_param, first try (param element 3 = 0) | Metal fp32 | GPU Metal 3938 / 3938, 2 | decode: Metal buffer packed; prefill: Metal buffer packed | 0 (0, 0, 0) | 7.748 (8 runs, 7.662 to 7.905) |
+| sdpa_transposed_param | Metal fp32 | GPU Metal 3938 / 3938, 2 | decode: Metal buffer packed; prefill: Metal buffer packed | 0 (0, 0, 0) | 7.753 (8 runs, 7.637 to 7.897) |
+| raw_vt (control) | CPU | CpuAccelerator 3880 / 3994, 58 | decode: host memory; prefill: host memory | 48 (16, 16, 16) | — |
+| raw_vt (control) | Metal fp32 | GPU Metal 3994 / 3994, 2 | decode: Metal buffer packed; prefill: Metal buffer packed | 48 (16, 16, 16) | 8.057 (8 runs, 8.035 to 8.229) |
+
+Through LiteRT-LM on WebGPU (the Tensor API executor with int8 per-channel weights, an int8 lm_head
+copy and fp32 precision; LiteRT-LM's benchmark entry with prefill 1024 forced, decode 256, KV cache
+2048; one process per run, the forms in turn in one quiet window, the first run of each discarded):
+
+| form | nodes delegated / total, partitions | mask input buffer | ids /48 (p0, p1, p2) | decode tok/s | prefill tok/s | peak memory footprint (MB) |
+|---|---|---|---|---|---|---|
+| raw | GPU WebGPU 5889 / 5889, 3 | decode: WebGPU buffer packed; prefill_1024: WebGPU buffer packed; prefill_128: WebGPU buffer packed | 48 (16, 16, 16) | 79.29 (7 runs, 79.04 to 79.43) | 3951.90 (7 runs, 3804.94 to 4014.41) | 18189.7 |
+| sdpa | GPU WebGPU 6299 / 6299, 3 | decode: WebGPU buffer packed; prefill_1024: WebGPU buffer packed; prefill_128: WebGPU buffer packed | 48 (16, 16, 16) | 59.26 (3 runs, 59.15 to 59.51) | 4222.02 (3 runs, 4109.46 to 4252.37) | 18129.0 |
+| sdpa_transposed | GPU WebGPU 5725 / 5725, 3 | decode: WebGPU buffer packed; prefill_1024: WebGPU buffer packed; prefill_128: WebGPU buffer packed | 48 (16, 16, 16) | 87.82 (3 runs, 87.38 to 88.05) | 4474.95 (3 runs, 4363.82 to 4488.99) | 18140.2 |
+| sdpa_transposed_param, first try (param element 3 = 0) | GPU WebGPU 5807 / 5807, 3 | decode: WebGPU buffer packed; prefill_1024: WebGPU buffer packed; prefill_128: WebGPU buffer packed | 0 (0, 0, 0) | 89.24 (3 runs, 88.81 to 90.22) | 5283.92 (3 runs, 5126.21 to 5457.36) | 18125.1 |
+| sdpa_transposed_param | GPU WebGPU 5807 / 5807, 3 | decode: WebGPU buffer packed; prefill_1024: WebGPU buffer packed; prefill_128: WebGPU buffer packed | 0 (0, 0, 0) | 89.25 (3 runs, 89.03 to 89.28) | 5500.45 (3 runs, 5405.53 to 5533.27) | 18170.6 |
+
+A control, in a second quiet window: `raw_vt` keeps the raw attention ops and stores the value
+caches transposed as `sdpa_transposed` does (that cache layout without the composite). Through
+LiteRT-LM on WebGPU, in turn with the raw graph and `sdpa_transposed`:
+
+| form | nodes delegated / total, partitions | ids /48 (p0, p1, p2) | decode tok/s | prefill tok/s | peak memory footprint (MB) |
+|---|---|---|---|---|---|
+| raw | GPU WebGPU 5889 / 5889, 3 | 48 (16, 16, 16) | 80.77 (3 runs, 80.15 to 80.82) | 3939.45 (3 runs, 3915.01 to 4075.02) | 18224.6 |
+| sdpa_transposed | GPU WebGPU 5725 / 5725, 3 | 48 (16, 16, 16) | 88.77 (3 runs, 88.67 to 89.43) | 4321.99 (3 runs, 4311.53 to 4465.78) | 18210.0 |
+| raw_vt (control) | GPU WebGPU 5889 / 5889, 3 | 48 (16, 16, 16) | 90.99 (3 runs, 90.28 to 91.86) | 3932.26 (3 runs, 3899.45 to 4023.69) | 18149.0 |
+
+With the transposed value caches alone, the raw ops decode at 90.99 tok/s against 80.77
+for the raw graph (+12.7 %), and the composite form measures 88.77 (-2.4 % against the
+control; 3 runs each, under 10 % apart, so the order of those two is not established): the decode
+gain of `sdpa_transposed` over the raw graph comes from the cache layout. Prefill: in the first
+window the composite form is ahead of the raw graph (4474.95 against 3951.90 tok/s,
++13.2 %); in the second the two are under 10 % apart with 3 runs each (4321.99 against
+3939.45, +9.7 %), as the composite form is against `raw_vt` (3932.26), so those orders
+are not established. On the CPU and on Metal, `raw_vt` matches the reference (first table).
+
+Notes:
+
+- On the CPU both new forms match the reference, where the `odml.scaled_dot_product_attention`
+  form does not prepare in XNNPACK.
+- On Metal both new forms give wrong ids from the first generated token, and on WebGPU the form
+  with the param tensor does, while the same graphs match the reference on the CPU, which computes
+  the decomposition. No log line names the kernel the GPU ran for the composite.
+- The mask input stays a GPU buffer in every GPU form. In `sdpa_transposed_param` the bool mask is
+  made in the graph from the fp32 input, so that input has a GPU consumer whether or not the region
+  reads the mask; the buffer type does not show whether a fused kernel dropped it.
+- A first try of `sdpa_transposed_param` passed `{start, end, end, 0, 0, 0, 0}` (what LiteRT-LM
+  writes into the signature input, before an exported graph sets element 3). It gave the same ids
+  as the second try on both GPUs ("first try" rows).
+- The node totals of the new forms are below the raw graph's. How the runtime counts a composite and
+  its decomposition was not inspected (as for the other composites above).

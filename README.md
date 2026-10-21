@@ -171,16 +171,24 @@ any of its files).
 - Two things the registry leaves to the backend: the creator gets no `litert::Environment`, so the
   backend makes its own, and a backend name stands for both the executor and the hardware, so the
   graph registers one name per accelerator.
-- Hours, from the `Time` sections of iterations 7 to 10 (minutes; 7 and 8 ran at the same time):
+- The attention core as the `odml.sdpa_transposed` composite (iteration 11,
+  `results/attention_forms.md`), at the composite boundary LiteRT-Torch exports for it: the graph matches the
+  reference on the CPU and, through LiteRT-LM, on WebGPU, where it decodes at 87.82 tok/s against
+  79.29 for the raw graph. A control with the raw ops and the same transposed value caches decodes
+  at 90.99 against 80.77 in a second window, so that gain is the cache layout. On Metal the
+  composite gives wrong ids from the first generated token, and so does the form with LiteRT-Torch's
+  param tensor on both GPUs; the raw ops with the transposed caches match on Metal (8.057 against
+  8.113 ms/token for the raw graph).
+- Hours, from the `Time` sections of iterations 7 to 11 (minutes; 7 and 8 ran at the same time):
 
-| part | iteration 7 | 8 | 9 | 10 | total |
-|---|---|---|---|---|---|
-| coding and reading | 175 | 91 | 36 | 69 | 371 |
-| builds | 4 | 3 | 0 | 0 | 7 |
-| waiting for the machine (the measurement lock shared with other jobs) | 321 | 50 | 0 | 286 | 657 |
-| waiting for a decision | 0 | 74 | 0 | 0 | 74 |
-| runs and checks | 7 | 6 | 18 | 34 | 65 |
-| rework after a failure | 5 | 1 | 3 | 0 | 9 |
+| part | iteration 7 | 8 | 9 | 10 | 11 | total |
+|---|---|---|---|---|---|---|
+| coding and reading | 175 | 91 | 36 | 69 | 100 | 471 |
+| builds | 4 | 3 | 0 | 0 | 4 | 11 |
+| waiting for the machine (the measurement lock shared with other jobs) | 321 | 50 | 0 | 286 | 542 | 1199 |
+| waiting for a decision | 0 | 74 | 0 | 0 | 0 | 74 |
+| runs and checks | 7 | 6 | 18 | 34 | 37 | 102 |
+| rework after a failure | 5 | 1 | 3 | 0 | 5 | 14 |
 
   Iteration 10 also has 309 minutes in which the agent's session was not running; its second window
   waited and ran in that time through a script.

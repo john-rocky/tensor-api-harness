@@ -30,6 +30,11 @@
 // Graph forms (defaults = the raw-op fp32 graph): --norms=composite emits
 // every RMSNorm as odml.rms_norm; --attention=sdpa emits the attention core
 // as odml.scaled_dot_product_attention over the GQA pre-fold;
+// --attention=sdpa_transposed emits it as odml.sdpa_transposed with the value
+// caches transposed (Qwen3Config::sdpa_transposed), and
+// --attention=sdpa_transposed_param adds the param tensor and the bool mask
+// (Qwen3Config::sdpa_param_tensor); --attention=raw_vt keeps the raw ops with
+// the value caches transposed (Qwen3Config::transposed_value_cache);
 // --weights_quant=int8|int4 quantizes the decoder matmul weights while
 // loading (see qwen3_weights.h); --weights_quant_lm_head adds an int8 copy of
 // the embedding table for the lm_head; --weights_dequant_fp32 stores those
@@ -126,8 +131,12 @@ ABSL_FLAG(std::string, rebind, "handle",
 ABSL_FLAG(std::string, norms, "raw",
           "raw|composite: RMSNorm as raw ops or as the odml.rms_norm composite");
 ABSL_FLAG(std::string, attention, "raw",
-          "raw|sdpa: the attention core as raw ops or as the "
-          "odml.scaled_dot_product_attention composite (GQA pre-folded)");
+          "raw|raw_vt|sdpa|sdpa_transposed|sdpa_transposed_param: the "
+          "attention core as raw ops (raw_vt: with the value caches stored "
+          "transposed), as the odml.scaled_dot_product_attention composite "
+          "(GQA pre-folded), or as the odml.sdpa_transposed composite (value "
+          "caches transposed; _param adds the param tensor and the bool "
+          "mask)");
 ABSL_FLAG(std::string, weights_quant, "none",
           "none|int8|int4: nearest-integer quantization of the 196 decoder "
           "matmul weights while loading (int8 per channel, int4 blockwise-32)");
@@ -397,6 +406,27 @@ absl::Status PrintDelegationReport(::litert::Environment& env,
             << ", non_cpu_fully_accelerated "
             << (non_cpu_full ? (*non_cpu_full ? "true" : "false") : "unknown")
             << std::endl;
+  // The buffer the compiled model creates for the mask input (and two other
+  // inputs to compare with): an input no accelerator reads falls back to
+  // host memory, as LiteRT-LM checks for its mask
+  // (ShouldSkipGlobalCausalAttentionMask).
+  for (const char* sig : {"prefill", "decode"}) {
+    for (const char* name : {"attention_mask", "param_tensor", "key_cache_0"}) {
+      auto buffer = compiled->CreateInputBuffer(sig, name);
+      if (!buffer) {
+        std::cout << id << " input buffer: " << sig << " " << name
+                  << " none (" << buffer.Error().Message() << ")" << std::endl;
+        continue;
+      }
+      auto type = buffer->BufferType();
+      std::cout << id << " input buffer: " << sig << " " << name << " type "
+                << (type ? static_cast<int>(*type) : -1)
+                << (type && *type == ::litert::TensorBufferType::kHostMemory
+                        ? " (host memory)"
+                        : "")
+                << std::endl;
+    }
+  }
   return absl::OkStatus();
 }
 
@@ -487,17 +517,27 @@ std::vector<std::string> DumpNames(const qwen3::Qwen3Config& config) {
   return names;
 }
 
+std::vector<int> KeyCacheShape(const qwen3::Qwen3Config& config) {
+  return {1, config.n_kv_groups, config.max_seq, config.head_dim};
+}
+
+// sdpa_transposed keeps the value caches as [1, kv, head_dim, max_seq].
+std::vector<int> ValueCacheShape(const qwen3::Qwen3Config& config) {
+  if (config.values_transposed()) {
+    return {1, config.n_kv_groups, config.head_dim, config.max_seq};
+  }
+  return KeyCacheShape(config);
+}
+
 // The outputs whose element counts are checked after a signature's first
 // call: the logits, the first layer's caches and (prefill with
 // --dump_blocks) the dumps, with the shapes the graph gives them.
 std::vector<OutputSpec> CheckedOutputs(const qwen3::Qwen3Config& config,
                                        int seq, bool is_decode) {
-  const std::vector<int> cache = {1, config.n_kv_groups, config.max_seq,
-                                  config.head_dim};
   std::vector<OutputSpec> specs = {
       {"logits", {1, seq, config.vocab_size}},
-      {"key_cache_0_new", cache},
-      {"value_cache_0_new", cache}};
+      {"key_cache_0_new", KeyCacheShape(config)},
+      {"value_cache_0_new", ValueCacheShape(config)}};
   if (config.dump_blocks && !is_decode) {
     for (const std::string& name : DumpNames(config)) {
       specs.push_back({name, {1, seq, config.emb_dim}});
@@ -534,6 +574,22 @@ absl::Status RunPrompt(LitertDynamicRunner& runner,
                          Create("cache_position", Type::kI32, {4},
                                 std::vector<int32_t>{0, 0, pos, 0}));
     if (!st.ok()) return st;
+    if (config.values_transposed()) {
+      st = runner.SetInput(sig, "value_cache_position",
+                           Create("value_cache_position", Type::kI32, {4},
+                                  std::vector<int32_t>{0, 0, 0, pos}));
+      if (!st.ok()) return st;
+    }
+    if (config.sdpa_param_tensor) {
+      // What the composite reads in a LiteRT-Torch export: LiteRT-LM writes
+      // {start, end, end, 0, ...} and the graph sets element 3 to end - start
+      // before the composites (export_hf/core/exportable_module.py).
+      st = runner.SetInput(
+          sig, "param_tensor",
+          Create("param_tensor", Type::kI32, {1, 1, 1, 7},
+                 std::vector<int32_t>{pos, pos + n, pos + n, n, 0, 0, 0}));
+      if (!st.ok()) return st;
+    }
     BuildRopeCosSin(pos, n, hd, config.rope_base, cos_v, sin_v);
     st = runner.SetInput(sig, "rope_cos",
                          Create("rope_cos", Type::kFP32, {1, 1, n, hd},
@@ -576,10 +632,11 @@ absl::Status RunPrompt(LitertDynamicRunner& runner,
   for (int i = 0; i < config.n_layers; ++i) {
     for (const char* kind : {"key_cache_", "value_cache_"}) {
       std::string name = absl::StrCat(kind, i);
+      const bool is_value = kind[0] == 'v';
       st = runner.SetInput(
           "prefill", name,
           Create(name.c_str(), Type::kFP32,
-                 {1, config.n_kv_groups, config.max_seq, hd},
+                 is_value ? ValueCacheShape(config) : KeyCacheShape(config),
                  std::vector<float>(cache_n, 0.0f)));
       if (!st.ok()) return st;
     }
@@ -655,7 +712,8 @@ absl::Status RunPrompt(LitertDynamicRunner& runner,
           s = runner.SetInput(
               "decode", in_name,
               Create(in_name.c_str(), Type::kFP32,
-                     {1, config.n_kv_groups, config.max_seq, hd},
+                     kind[0] == 'v' ? ValueCacheShape(config)
+                                    : KeyCacheShape(config),
                      std::move(v)));
           if (!s.ok()) return s;
           continue;
@@ -731,10 +789,17 @@ absl::Status Run() {
   }
   config.rms_norm_composite = norms == "composite";
   const std::string attention = absl::GetFlag(FLAGS_attention);
-  if (attention != "raw" && attention != "sdpa") {
-    return absl::InvalidArgumentError("--attention must be raw|sdpa");
+  if (attention != "raw" && attention != "raw_vt" && attention != "sdpa" &&
+      attention != "sdpa_transposed" && attention != "sdpa_transposed_param") {
+    return absl::InvalidArgumentError(
+        "--attention must be "
+        "raw|raw_vt|sdpa|sdpa_transposed|sdpa_transposed_param");
   }
+  config.transposed_value_cache = attention == "raw_vt";
   config.sdpa_attention = attention == "sdpa";
+  config.sdpa_transposed = attention == "sdpa_transposed" ||
+                           attention == "sdpa_transposed_param";
+  config.sdpa_param_tensor = attention == "sdpa_transposed_param";
   const std::string quant = absl::GetFlag(FLAGS_weights_quant);
   qwen3::WeightQuantMode quant_mode;
   if (quant == "none") {

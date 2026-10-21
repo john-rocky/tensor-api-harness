@@ -34,7 +34,16 @@ struct Qwen3Inputs {
   TfTensor rope_sin;
   // [1, 1, seq, max_seq] kFP32 additive mask.
   TfTensor attention_mask;
-  // Per layer: [1, n_kv_groups, max_seq, head_dim] kFP32.
+  // sdpa_transposed only: [4] kI32 {0, 0, 0, position} — the write position
+  // in the transposed value caches.
+  bool has_value_cache_position = false;
+  TfTensor value_cache_position;
+  // sdpa_param_tensor only: [1, 1, 1, 7] kI32 {start, end, end, 0, 0, 0, 0}
+  // with end = start + seq (the values LiteRT-LM writes for its GPU models).
+  bool has_param_tensor = false;
+  TfTensor param_tensor;
+  // Per layer: [1, n_kv_groups, max_seq, head_dim] kFP32; with
+  // sdpa_transposed the value caches are [1, n_kv_groups, head_dim, max_seq].
   std::vector<TfTensor> key_caches;
   std::vector<TfTensor> value_caches;
 

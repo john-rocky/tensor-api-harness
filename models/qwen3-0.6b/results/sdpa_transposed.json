@@ -1,0 +1,1646 @@
+{
+ "iteration": 11,
+ "machine": "Apple M4 Max, macOS 27.0",
+ "binaries_sha256": {
+  "graph/qwen3_main (LiteRT bea3bc69), first try of sdpa_transposed_param": "8d0a93a7fe2715e3cd565fef67af6f7cb44a9d7956ee42dd39a91bbfe0f14c4f",
+  "graph/qwen3_main (LiteRT bea3bc69), second try of sdpa_transposed_param": "f19d95e542362ca7f7374dcce889844903fd89b5b598b2e0bc89ad743a879145",
+  "graph/qwen3_main (LiteRT bea3bc69), the published sources (raw_vt)": "7147764c80c0e95071bed0e0652e324d317f87d97267defbbc4262a8fc8dc85c",
+  "libLiteRtMetalAccelerator.dylib (the harness runner's Metal accelerator)": "5531feca4ff0e2c67628e09d635a6f79da74534e88b7a3d262efa5dcda59e95d",
+  "litert_lm/litert_lm_advanced_main_tensor_api (LiteRT-LM d78488c4), first try of sdpa_transposed_param": "d1ef6f1777e08d8fbf637f47f9cfb8dc11f88bce8a1ef614687054fb083a91a2",
+  "litert_lm/litert_lm_advanced_main_tensor_api (LiteRT-LM d78488c4), second try of sdpa_transposed_param": "27ff2607cf2cb2f050da18d5b6df927435216268997dbbd8254ddd00740baf73",
+  "litert_lm/litert_lm_advanced_main_tensor_api (LiteRT-LM d78488c4), the published sources (raw_vt)": "fdea237e6e7bccccad221f20800d40a91c5c0e1cce66aa195a5ca0a93bca1788",
+  "libLiteRtWebGpuAccelerator.dylib (LiteRT-LM d78488c4 prebuilt/macos_arm64)": "b7b7dd7bd6c90a41f6dee7d1f5b2ff76de2df39921f68f1c7e6d525f5136c4cf"
+ },
+ "harness_runner": {
+  "conditions": "fp32 weights; prompts of 5, 4 and 18 tokens (p0, p1, p2), KV cache 64, greedy 16 = prefill + 15 decode steps; one run = one process; a run's value = the median of the three per-prompt median decode ms/token; pass 0 discarded",
+  "forms": {
+   "cpu_sdpat": {
+    "backend": "CPU",
+    "attention": "sdpa_transposed",
+    "flags": "--accelerator=cpu --attention=sdpa_transposed",
+    "ids_equal_of_48": 48,
+    "ids_equal_per_prompt": {
+     "p0": 16,
+     "p1": 16,
+     "p2": 16
+    },
+    "total_nodes": 3882,
+    "accelerators": [
+     {
+      "accelerator": "CpuAccelerator",
+      "delegated_nodes": 3656,
+      "partitions": 170
+     }
+    ],
+    "input_buffers": {
+     "prefill": {
+      "attention_mask": "host memory",
+      "param_tensor": "no such input",
+      "key_cache_0": "host memory"
+     },
+     "decode": {
+      "attention_mask": "host memory",
+      "param_tensor": "no such input",
+      "key_cache_0": "host memory"
+     }
+    }
+   },
+   "cpu_sdpatp": {
+    "backend": "CPU",
+    "attention": "sdpa_transposed_param, first try (param element 3 = 0)",
+    "flags": "--accelerator=cpu --attention=sdpa_transposed_param",
+    "ids_equal_of_48": 48,
+    "ids_equal_per_prompt": {
+     "p0": 16,
+     "p1": 16,
+     "p2": 16
+    },
+    "total_nodes": 3938,
+    "accelerators": [
+     {
+      "accelerator": "CpuAccelerator",
+      "delegated_nodes": 3600,
+      "partitions": 170
+     }
+    ],
+    "input_buffers": {
+     "prefill": {
+      "attention_mask": "host memory",
+      "param_tensor": "host memory",
+      "key_cache_0": "host memory"
+     },
+     "decode": {
+      "attention_mask": "host memory",
+      "param_tensor": "host memory",
+      "key_cache_0": "host memory"
+     }
+    }
+   },
+   "metal_raw": {
+    "backend": "Metal fp32",
+    "attention": "raw",
+    "flags": "--accelerator=gpu --gpu_precision=fp32 --gpu_buffer_storage=buffer --attention=raw",
+    "ids_equal_of_48": 48,
+    "ids_equal_per_prompt": {
+     "p0": 16,
+     "p1": 16,
+     "p2": 16
+    },
+    "total_nodes": 3994,
+    "accelerators": [
+     {
+      "accelerator": "GPU Metal",
+      "delegated_nodes": 3994,
+      "partitions": 2
+     }
+    ],
+    "input_buffers": {
+     "prefill": {
+      "attention_mask": "Metal buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "Metal buffer packed"
+     },
+     "decode": {
+      "attention_mask": "Metal buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "Metal buffer packed"
+     }
+    },
+    "runs_window2": [
+     {
+      "pass": 1,
+      "decode_ms_per_token": 8.2258,
+      "prefill_ms": {
+       "p0": 28.699,
+       "p1": 26.991,
+       "p2": 30.414
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 2,
+      "decode_ms_per_token": 8.0956,
+      "prefill_ms": {
+       "p0": 25.8,
+       "p1": 27.713,
+       "p2": 29.014
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 3,
+      "decode_ms_per_token": 8.1296,
+      "prefill_ms": {
+       "p0": 28.209,
+       "p1": 26.503,
+       "p2": 31.39
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 4,
+      "decode_ms_per_token": 8.1415,
+      "prefill_ms": {
+       "p0": 27.583,
+       "p1": 25.854,
+       "p2": 32.031
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 5,
+      "decode_ms_per_token": 8.0675,
+      "prefill_ms": {
+       "p0": 29.999,
+       "p1": 26.457,
+       "p2": 33.033
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 6,
+      "decode_ms_per_token": 8.291,
+      "prefill_ms": {
+       "p0": 33.236,
+       "p1": 26.694,
+       "p2": 30.938
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 7,
+      "decode_ms_per_token": 8.076,
+      "prefill_ms": {
+       "p0": 29.439,
+       "p1": 30.619,
+       "p2": 31.212
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 8,
+      "decode_ms_per_token": 8.0032,
+      "prefill_ms": {
+       "p0": 27.767,
+       "p1": 25.521,
+       "p2": 32.525
+      },
+      "timing": "run+readback"
+     }
+    ],
+    "runs_window1": [
+     {
+      "pass": 1,
+      "decode_ms_per_token": 8.1702,
+      "prefill_ms": {
+       "p0": 30.647,
+       "p1": 27.997,
+       "p2": 31.623
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 2,
+      "decode_ms_per_token": 8.0635,
+      "prefill_ms": {
+       "p0": 29.983,
+       "p1": 27.362,
+       "p2": 31.59
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 3,
+      "decode_ms_per_token": 8.0511,
+      "prefill_ms": {
+       "p0": 27.924,
+       "p1": 27.476,
+       "p2": 31.5
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 4,
+      "decode_ms_per_token": 8.0105,
+      "prefill_ms": {
+       "p0": 27.398,
+       "p1": 26.574,
+       "p2": 30.67
+      },
+      "timing": "run+readback"
+     }
+    ],
+    "decode_ms_per_token": {
+     "median": 8.1126,
+     "min": 8.0032,
+     "max": 8.291,
+     "runs": 8
+    },
+    "decode_ms_per_token_window1": {
+     "median": 8.0573,
+     "min": 8.0105,
+     "max": 8.1702,
+     "runs": 4
+    }
+   },
+   "metal_sdpa": {
+    "backend": "Metal fp32",
+    "attention": "sdpa",
+    "flags": "--accelerator=gpu --gpu_precision=fp32 --gpu_buffer_storage=buffer --attention=sdpa",
+    "ids_equal_of_48": 48,
+    "ids_equal_per_prompt": {
+     "p0": 16,
+     "p1": 16,
+     "p2": 16
+    },
+    "total_nodes": 4274,
+    "accelerators": [
+     {
+      "accelerator": "GPU Metal",
+      "delegated_nodes": 4274,
+      "partitions": 2
+     }
+    ],
+    "input_buffers": {
+     "prefill": {
+      "attention_mask": "Metal buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "Metal buffer packed"
+     },
+     "decode": {
+      "attention_mask": "Metal buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "Metal buffer packed"
+     }
+    },
+    "runs_window2": [
+     {
+      "pass": 1,
+      "decode_ms_per_token": 8.6751,
+      "prefill_ms": {
+       "p0": 30.905,
+       "p1": 27.189,
+       "p2": 31.442
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 2,
+      "decode_ms_per_token": 8.6734,
+      "prefill_ms": {
+       "p0": 30.283,
+       "p1": 25.398,
+       "p2": 32.269
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 3,
+      "decode_ms_per_token": 8.786,
+      "prefill_ms": {
+       "p0": 25.981,
+       "p1": 26.867,
+       "p2": 32.409
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 4,
+      "decode_ms_per_token": 8.5768,
+      "prefill_ms": {
+       "p0": 26.925,
+       "p1": 26.241,
+       "p2": 37.155
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 5,
+      "decode_ms_per_token": 8.5341,
+      "prefill_ms": {
+       "p0": 26.34,
+       "p1": 26.836,
+       "p2": 32.45
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 6,
+      "decode_ms_per_token": 8.4855,
+      "prefill_ms": {
+       "p0": 24.916,
+       "p1": 25.922,
+       "p2": 31.622
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 7,
+      "decode_ms_per_token": 8.4752,
+      "prefill_ms": {
+       "p0": 25.098,
+       "p1": 24.427,
+       "p2": 30.51
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 8,
+      "decode_ms_per_token": 8.7336,
+      "prefill_ms": {
+       "p0": 26.383,
+       "p1": 30.296,
+       "p2": 31.768
+      },
+      "timing": "run+readback"
+     }
+    ],
+    "runs_window1": [
+     {
+      "pass": 1,
+      "decode_ms_per_token": 8.513,
+      "prefill_ms": {
+       "p0": 26.523,
+       "p1": 27.701,
+       "p2": 32.387
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 2,
+      "decode_ms_per_token": 8.5402,
+      "prefill_ms": {
+       "p0": 29.986,
+       "p1": 26.103,
+       "p2": 31.367
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 3,
+      "decode_ms_per_token": 8.678,
+      "prefill_ms": {
+       "p0": 30.796,
+       "p1": 28.67,
+       "p2": 32.325
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 4,
+      "decode_ms_per_token": 8.5955,
+      "prefill_ms": {
+       "p0": 29.886,
+       "p1": 27.675,
+       "p2": 32.628
+      },
+      "timing": "run+readback"
+     }
+    ],
+    "decode_ms_per_token": {
+     "median": 8.6251,
+     "min": 8.4752,
+     "max": 8.786,
+     "runs": 8
+    },
+    "decode_ms_per_token_window1": {
+     "median": 8.5678,
+     "min": 8.513,
+     "max": 8.678,
+     "runs": 4
+    }
+   },
+   "metal_sdpat": {
+    "backend": "Metal fp32",
+    "attention": "sdpa_transposed",
+    "flags": "--accelerator=gpu --gpu_precision=fp32 --gpu_buffer_storage=buffer --attention=sdpa_transposed",
+    "ids_equal_of_48": 0,
+    "ids_equal_per_prompt": {
+     "p0": 0,
+     "p1": 0,
+     "p2": 0
+    },
+    "total_nodes": 3882,
+    "accelerators": [
+     {
+      "accelerator": "GPU Metal",
+      "delegated_nodes": 3882,
+      "partitions": 2
+     }
+    ],
+    "input_buffers": {
+     "prefill": {
+      "attention_mask": "Metal buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "Metal buffer packed"
+     },
+     "decode": {
+      "attention_mask": "Metal buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "Metal buffer packed"
+     }
+    },
+    "runs_window2": [
+     {
+      "pass": 1,
+      "decode_ms_per_token": 7.8444,
+      "prefill_ms": {
+       "p0": 27.702,
+       "p1": 26.509,
+       "p2": 31.003
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 2,
+      "decode_ms_per_token": 7.864,
+      "prefill_ms": {
+       "p0": 26.527,
+       "p1": 25.055,
+       "p2": 31.951
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 3,
+      "decode_ms_per_token": 7.7605,
+      "prefill_ms": {
+       "p0": 26.478,
+       "p1": 25.387,
+       "p2": 30.777
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 4,
+      "decode_ms_per_token": 7.7583,
+      "prefill_ms": {
+       "p0": 27.511,
+       "p1": 23.941,
+       "p2": 31.442
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 5,
+      "decode_ms_per_token": 7.8268,
+      "prefill_ms": {
+       "p0": 29.718,
+       "p1": 25.667,
+       "p2": 33.523
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 6,
+      "decode_ms_per_token": 8.2181,
+      "prefill_ms": {
+       "p0": 28.298,
+       "p1": 27.494,
+       "p2": 30.926
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 7,
+      "decode_ms_per_token": 7.7694,
+      "prefill_ms": {
+       "p0": 28.592,
+       "p1": 26.117,
+       "p2": 32.354
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 8,
+      "decode_ms_per_token": 7.9539,
+      "prefill_ms": {
+       "p0": 28.808,
+       "p1": 25.523,
+       "p2": 31.236
+      },
+      "timing": "run+readback"
+     }
+    ],
+    "runs_window1": [
+     {
+      "pass": 1,
+      "decode_ms_per_token": 7.7848,
+      "prefill_ms": {
+       "p0": 31.136,
+       "p1": 29.495,
+       "p2": 32.158
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 2,
+      "decode_ms_per_token": 7.8938,
+      "prefill_ms": {
+       "p0": 29.447,
+       "p1": 26.298,
+       "p2": 31.509
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 3,
+      "decode_ms_per_token": 7.83,
+      "prefill_ms": {
+       "p0": 28.985,
+       "p1": 28.855,
+       "p2": 30.632
+      },
+      "timing": "run+readback"
+     }
+    ],
+    "decode_ms_per_token": {
+     "median": 7.8356,
+     "min": 7.7583,
+     "max": 8.2181,
+     "runs": 8
+    },
+    "decode_ms_per_token_window1": {
+     "median": 7.83,
+     "min": 7.7848,
+     "max": 7.8938,
+     "runs": 3
+    }
+   },
+   "metal_sdpatp": {
+    "backend": "Metal fp32",
+    "attention": "sdpa_transposed_param, first try (param element 3 = 0)",
+    "flags": "--accelerator=gpu --gpu_precision=fp32 --gpu_buffer_storage=buffer --attention=sdpa_transposed_param",
+    "ids_equal_of_48": 0,
+    "ids_equal_per_prompt": {
+     "p0": 0,
+     "p1": 0,
+     "p2": 0
+    },
+    "total_nodes": 3938,
+    "accelerators": [
+     {
+      "accelerator": "GPU Metal",
+      "delegated_nodes": 3938,
+      "partitions": 2
+     }
+    ],
+    "input_buffers": {
+     "prefill": {
+      "attention_mask": "Metal buffer packed",
+      "param_tensor": "Metal buffer packed",
+      "key_cache_0": "Metal buffer packed"
+     },
+     "decode": {
+      "attention_mask": "Metal buffer packed",
+      "param_tensor": "Metal buffer packed",
+      "key_cache_0": "Metal buffer packed"
+     }
+    },
+    "runs_window2": [
+     {
+      "pass": 1,
+      "decode_ms_per_token": 7.7268,
+      "prefill_ms": {
+       "p0": 27.075,
+       "p1": 25.195,
+       "p2": 31.13
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 2,
+      "decode_ms_per_token": 7.7689,
+      "prefill_ms": {
+       "p0": 29.487,
+       "p1": 25.202,
+       "p2": 32.552
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 3,
+      "decode_ms_per_token": 7.787,
+      "prefill_ms": {
+       "p0": 27.817,
+       "p1": 27.882,
+       "p2": 31.291
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 4,
+      "decode_ms_per_token": 7.6887,
+      "prefill_ms": {
+       "p0": 26.669,
+       "p1": 24.134,
+       "p2": 37.529
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 5,
+      "decode_ms_per_token": 7.662,
+      "prefill_ms": {
+       "p0": 27.926,
+       "p1": 25.805,
+       "p2": 29.924
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 6,
+      "decode_ms_per_token": 7.7713,
+      "prefill_ms": {
+       "p0": 26.31,
+       "p1": 25.955,
+       "p2": 33.171
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 7,
+      "decode_ms_per_token": 7.9055,
+      "prefill_ms": {
+       "p0": 27.499,
+       "p1": 26.263,
+       "p2": 36.465
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 8,
+      "decode_ms_per_token": 7.7215,
+      "prefill_ms": {
+       "p0": 27.189,
+       "p1": 26.951,
+       "p2": 31.463
+      },
+      "timing": "run+readback"
+     }
+    ],
+    "runs_window1": [
+     {
+      "pass": 1,
+      "decode_ms_per_token": 7.7046,
+      "prefill_ms": {
+       "p0": 28.773,
+       "p1": 27.237,
+       "p2": 30.389
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 2,
+      "decode_ms_per_token": 7.7263,
+      "prefill_ms": {
+       "p0": 31.305,
+       "p1": 28.512,
+       "p2": 32.757
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 3,
+      "decode_ms_per_token": 7.7016,
+      "prefill_ms": {
+       "p0": 27.625,
+       "p1": 27.543,
+       "p2": 31.865
+      },
+      "timing": "run+readback"
+     }
+    ],
+    "decode_ms_per_token": {
+     "median": 7.7478,
+     "min": 7.662,
+     "max": 7.9055,
+     "runs": 8
+    },
+    "decode_ms_per_token_window1": {
+     "median": 7.7046,
+     "min": 7.7016,
+     "max": 7.7263,
+     "runs": 3
+    }
+   },
+   "metal_sdpatp2": {
+    "backend": "Metal fp32",
+    "attention": "sdpa_transposed_param",
+    "flags": "--accelerator=gpu --gpu_precision=fp32 --gpu_buffer_storage=buffer --attention=sdpa_transposed_param",
+    "ids_equal_of_48": 0,
+    "ids_equal_per_prompt": {
+     "p0": 0,
+     "p1": 0,
+     "p2": 0
+    },
+    "total_nodes": 3938,
+    "accelerators": [
+     {
+      "accelerator": "GPU Metal",
+      "delegated_nodes": 3938,
+      "partitions": 2
+     }
+    ],
+    "input_buffers": {
+     "prefill": {
+      "attention_mask": "Metal buffer packed",
+      "param_tensor": "Metal buffer packed",
+      "key_cache_0": "Metal buffer packed"
+     },
+     "decode": {
+      "attention_mask": "Metal buffer packed",
+      "param_tensor": "Metal buffer packed",
+      "key_cache_0": "Metal buffer packed"
+     }
+    },
+    "runs_window2": [
+     {
+      "pass": 1,
+      "decode_ms_per_token": 7.7638,
+      "prefill_ms": {
+       "p0": 26.936,
+       "p1": 26.13,
+       "p2": 32.698
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 2,
+      "decode_ms_per_token": 7.811,
+      "prefill_ms": {
+       "p0": 29.604,
+       "p1": 26.192,
+       "p2": 32.691
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 3,
+      "decode_ms_per_token": 7.7243,
+      "prefill_ms": {
+       "p0": 26.61,
+       "p1": 24.151,
+       "p2": 31.387
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 4,
+      "decode_ms_per_token": 7.6747,
+      "prefill_ms": {
+       "p0": 27.673,
+       "p1": 25.66,
+       "p2": 31.328
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 5,
+      "decode_ms_per_token": 7.6366,
+      "prefill_ms": {
+       "p0": 26.408,
+       "p1": 24.489,
+       "p2": 33.335
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 6,
+      "decode_ms_per_token": 7.8975,
+      "prefill_ms": {
+       "p0": 30.212,
+       "p1": 27.39,
+       "p2": 32.598
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 7,
+      "decode_ms_per_token": 7.7413,
+      "prefill_ms": {
+       "p0": 26.767,
+       "p1": 26.791,
+       "p2": 32.12
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 8,
+      "decode_ms_per_token": 7.8904,
+      "prefill_ms": {
+       "p0": 28.02,
+       "p1": 25.662,
+       "p2": 31.815
+      },
+      "timing": "run+readback"
+     }
+    ],
+    "runs_window1": [
+     {
+      "pass": 1,
+      "decode_ms_per_token": 7.9125,
+      "prefill_ms": {
+       "p0": 27.862,
+       "p1": 29.743,
+       "p2": 33.024
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 2,
+      "decode_ms_per_token": 7.7063,
+      "prefill_ms": {
+       "p0": 29.163,
+       "p1": 26.375,
+       "p2": 32.419
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 3,
+      "decode_ms_per_token": 7.7903,
+      "prefill_ms": {
+       "p0": 31.158,
+       "p1": 28.504,
+       "p2": 31.143
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 4,
+      "decode_ms_per_token": 7.8595,
+      "prefill_ms": {
+       "p0": 30.736,
+       "p1": 31.924,
+       "p2": 33.725
+      },
+      "timing": "run+readback"
+     }
+    ],
+    "decode_ms_per_token": {
+     "median": 7.7525,
+     "min": 7.6366,
+     "max": 7.8975,
+     "runs": 8
+    },
+    "decode_ms_per_token_window1": {
+     "median": 7.8249,
+     "min": 7.7063,
+     "max": 7.9125,
+     "runs": 4
+    }
+   },
+   "cpu_rawvt": {
+    "backend": "CPU",
+    "attention": "raw_vt (control)",
+    "flags": "--accelerator=cpu --attention=raw_vt",
+    "ids_equal_of_48": 48,
+    "ids_equal_per_prompt": {
+     "p0": 16,
+     "p1": 16,
+     "p2": 16
+    },
+    "total_nodes": 3994,
+    "accelerators": [
+     {
+      "accelerator": "CpuAccelerator",
+      "delegated_nodes": 3880,
+      "partitions": 58
+     }
+    ],
+    "input_buffers": {
+     "prefill": {
+      "attention_mask": "host memory",
+      "param_tensor": "no such input",
+      "key_cache_0": "host memory"
+     },
+     "decode": {
+      "attention_mask": "host memory",
+      "param_tensor": "no such input",
+      "key_cache_0": "host memory"
+     }
+    }
+   },
+   "metal_rawvt": {
+    "backend": "Metal fp32",
+    "attention": "raw_vt (control)",
+    "flags": "--accelerator=gpu --gpu_precision=fp32 --gpu_buffer_storage=buffer --attention=raw_vt",
+    "ids_equal_of_48": 48,
+    "ids_equal_per_prompt": {
+     "p0": 16,
+     "p1": 16,
+     "p2": 16
+    },
+    "total_nodes": 3994,
+    "accelerators": [
+     {
+      "accelerator": "GPU Metal",
+      "delegated_nodes": 3994,
+      "partitions": 2
+     }
+    ],
+    "input_buffers": {
+     "prefill": {
+      "attention_mask": "Metal buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "Metal buffer packed"
+     },
+     "decode": {
+      "attention_mask": "Metal buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "Metal buffer packed"
+     }
+    },
+    "runs_window2": [
+     {
+      "pass": 1,
+      "decode_ms_per_token": 8.0352,
+      "prefill_ms": {
+       "p0": 27.043,
+       "p1": 26.269,
+       "p2": 31.172
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 2,
+      "decode_ms_per_token": 8.0489,
+      "prefill_ms": {
+       "p0": 26.515,
+       "p1": 25.629,
+       "p2": 37.497
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 3,
+      "decode_ms_per_token": 8.0605,
+      "prefill_ms": {
+       "p0": 26.375,
+       "p1": 26.368,
+       "p2": 31.148
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 4,
+      "decode_ms_per_token": 8.0504,
+      "prefill_ms": {
+       "p0": 26.231,
+       "p1": 25.274,
+       "p2": 31.176
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 5,
+      "decode_ms_per_token": 8.1821,
+      "prefill_ms": {
+       "p0": 27.066,
+       "p1": 28.839,
+       "p2": 29.717
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 6,
+      "decode_ms_per_token": 8.2294,
+      "prefill_ms": {
+       "p0": 27.292,
+       "p1": 29.112,
+       "p2": 30.891
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 7,
+      "decode_ms_per_token": 8.2027,
+      "prefill_ms": {
+       "p0": 27.35,
+       "p1": 28.274,
+       "p2": 32.529
+      },
+      "timing": "run+readback"
+     },
+     {
+      "pass": 8,
+      "decode_ms_per_token": 8.0532,
+      "prefill_ms": {
+       "p0": 27.047,
+       "p1": 26.535,
+       "p2": 31.944
+      },
+      "timing": "run+readback"
+     }
+    ],
+    "runs_window1": [],
+    "decode_ms_per_token": {
+     "median": 8.0569,
+     "min": 8.0352,
+     "max": 8.2294,
+     "runs": 8
+    },
+    "decode_ms_per_token_window1": null
+   }
+  }
+ },
+ "litert_lm_webgpu": {
+  "conditions": "LiteRT-LM benchmark entry: forced prefill 1024, decode 256, KV cache 2048; int8 per-channel weights + int8 lm_head copy, precision fp32; one run = one process; pass 0 discarded",
+  "forms": {
+   "tapi_G4": {
+    "attention": "raw",
+    "flags": "--backend=tensor_api_gpu --tensor_api_weights_quant=int8 --tensor_api_lm_head_int8 --tensor_api_gpu_precision=fp32",
+    "ids_equal_of_48": 48,
+    "ids_equal_per_prompt": {
+     "p0": 16,
+     "p1": 16,
+     "p2": 16
+    },
+    "total_nodes": 5889,
+    "accelerators": [
+     {
+      "accelerator": "GPU WebGPU",
+      "delegated_nodes": 5889,
+      "partitions": 3
+     }
+    ],
+    "input_buffers": {
+     "decode": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_128": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_1024": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     }
+    },
+    "webgpu_init_lines_p0": {
+     "from graph": 6,
+     "from serialized data": 0
+    },
+    "runs": [
+     {
+      "pass": 1,
+      "decode_tok_s": 79.07,
+      "prefill_tok_s": 3832.46,
+      "peak_memory_footprint_mb": 18158.7
+     },
+     {
+      "pass": 2,
+      "decode_tok_s": 79.04,
+      "prefill_tok_s": 3920.22,
+      "peak_memory_footprint_mb": 18217.0
+     },
+     {
+      "pass": 3,
+      "decode_tok_s": 79.43,
+      "prefill_tok_s": 3973.46,
+      "peak_memory_footprint_mb": 18189.7
+     },
+     {
+      "pass": 10,
+      "decode_tok_s": 79.29,
+      "prefill_tok_s": 3804.94,
+      "peak_memory_footprint_mb": 18258.7
+     },
+     {
+      "pass": 11,
+      "decode_tok_s": 79.34,
+      "prefill_tok_s": 3975.23,
+      "peak_memory_footprint_mb": 18082.2
+     },
+     {
+      "pass": 12,
+      "decode_tok_s": 79.37,
+      "prefill_tok_s": 4014.41,
+      "peak_memory_footprint_mb": 18105.9
+     },
+     {
+      "pass": 13,
+      "decode_tok_s": 79.22,
+      "prefill_tok_s": 3951.9,
+      "peak_memory_footprint_mb": 18221.7
+     }
+    ],
+    "decode_tok_s": {
+     "median": 79.29,
+     "min": 79.04,
+     "max": 79.43,
+     "runs": 7
+    },
+    "prefill_tok_s": {
+     "median": 3951.9,
+     "min": 3804.94,
+     "max": 4014.41,
+     "runs": 7
+    },
+    "peak_memory_footprint_mb_median": 18189.7
+   },
+   "tapi_G4a": {
+    "attention": "sdpa",
+    "flags": "--backend=tensor_api_gpu --tensor_api_weights_quant=int8 --tensor_api_lm_head_int8 --tensor_api_gpu_precision=fp32 --tensor_api_attention=sdpa",
+    "ids_equal_of_48": 48,
+    "ids_equal_per_prompt": {
+     "p0": 16,
+     "p1": 16,
+     "p2": 16
+    },
+    "total_nodes": 6299,
+    "accelerators": [
+     {
+      "accelerator": "GPU WebGPU",
+      "delegated_nodes": 6299,
+      "partitions": 3
+     }
+    ],
+    "input_buffers": {
+     "decode": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_128": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_1024": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     }
+    },
+    "webgpu_init_lines_p0": {
+     "from graph": 6,
+     "from serialized data": 0
+    },
+    "runs": [
+     {
+      "pass": 1,
+      "decode_tok_s": 59.15,
+      "prefill_tok_s": 4109.46,
+      "peak_memory_footprint_mb": 18296.6
+     },
+     {
+      "pass": 2,
+      "decode_tok_s": 59.51,
+      "prefill_tok_s": 4222.02,
+      "peak_memory_footprint_mb": 18116.8
+     },
+     {
+      "pass": 3,
+      "decode_tok_s": 59.26,
+      "prefill_tok_s": 4252.37,
+      "peak_memory_footprint_mb": 18129.0
+     }
+    ],
+    "decode_tok_s": {
+     "median": 59.26,
+     "min": 59.15,
+     "max": 59.51,
+     "runs": 3
+    },
+    "prefill_tok_s": {
+     "median": 4222.02,
+     "min": 4109.46,
+     "max": 4252.37,
+     "runs": 3
+    },
+    "peak_memory_footprint_mb_median": 18129.0
+   },
+   "tapi_G4t": {
+    "attention": "sdpa_transposed",
+    "flags": "--backend=tensor_api_gpu --tensor_api_weights_quant=int8 --tensor_api_lm_head_int8 --tensor_api_gpu_precision=fp32 --tensor_api_attention=sdpa_transposed",
+    "ids_equal_of_48": 48,
+    "ids_equal_per_prompt": {
+     "p0": 16,
+     "p1": 16,
+     "p2": 16
+    },
+    "total_nodes": 5725,
+    "accelerators": [
+     {
+      "accelerator": "GPU WebGPU",
+      "delegated_nodes": 5725,
+      "partitions": 3
+     }
+    ],
+    "input_buffers": {
+     "decode": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_128": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_1024": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     }
+    },
+    "webgpu_init_lines_p0": {
+     "from graph": 6,
+     "from serialized data": 0
+    },
+    "runs": [
+     {
+      "pass": 1,
+      "decode_tok_s": 87.82,
+      "prefill_tok_s": 4474.95,
+      "peak_memory_footprint_mb": 18126.3
+     },
+     {
+      "pass": 2,
+      "decode_tok_s": 87.38,
+      "prefill_tok_s": 4363.82,
+      "peak_memory_footprint_mb": 18201.5
+     },
+     {
+      "pass": 3,
+      "decode_tok_s": 88.05,
+      "prefill_tok_s": 4488.99,
+      "peak_memory_footprint_mb": 18140.2
+     }
+    ],
+    "decode_tok_s": {
+     "median": 87.82,
+     "min": 87.38,
+     "max": 88.05,
+     "runs": 3
+    },
+    "prefill_tok_s": {
+     "median": 4474.95,
+     "min": 4363.82,
+     "max": 4488.99,
+     "runs": 3
+    },
+    "peak_memory_footprint_mb_median": 18140.2
+   },
+   "tapi_G4tp": {
+    "attention": "sdpa_transposed_param, first try (param element 3 = 0)",
+    "flags": "--backend=tensor_api_gpu --tensor_api_weights_quant=int8 --tensor_api_lm_head_int8 --tensor_api_gpu_precision=fp32 --tensor_api_attention=sdpa_transposed_param",
+    "ids_equal_of_48": 0,
+    "ids_equal_per_prompt": {
+     "p0": 0,
+     "p1": 0,
+     "p2": 0
+    },
+    "total_nodes": 5807,
+    "accelerators": [
+     {
+      "accelerator": "GPU WebGPU",
+      "delegated_nodes": 5807,
+      "partitions": 3
+     }
+    ],
+    "input_buffers": {
+     "decode": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "WebGPU buffer packed",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_128": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "WebGPU buffer packed",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_1024": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "WebGPU buffer packed",
+      "key_cache_0": "WebGPU buffer packed"
+     }
+    },
+    "webgpu_init_lines_p0": {
+     "from graph": 6,
+     "from serialized data": 0
+    },
+    "runs": [
+     {
+      "pass": 1,
+      "decode_tok_s": 90.22,
+      "prefill_tok_s": 5283.92,
+      "peak_memory_footprint_mb": 18161.6
+     },
+     {
+      "pass": 2,
+      "decode_tok_s": 89.24,
+      "prefill_tok_s": 5457.36,
+      "peak_memory_footprint_mb": 18042.2
+     },
+     {
+      "pass": 3,
+      "decode_tok_s": 88.81,
+      "prefill_tok_s": 5126.21,
+      "peak_memory_footprint_mb": 18125.1
+     }
+    ],
+    "decode_tok_s": {
+     "median": 89.24,
+     "min": 88.81,
+     "max": 90.22,
+     "runs": 3
+    },
+    "prefill_tok_s": {
+     "median": 5283.92,
+     "min": 5126.21,
+     "max": 5457.36,
+     "runs": 3
+    },
+    "peak_memory_footprint_mb_median": 18125.1
+   },
+   "tapi_G4tp2": {
+    "attention": "sdpa_transposed_param",
+    "flags": "--backend=tensor_api_gpu --tensor_api_weights_quant=int8 --tensor_api_lm_head_int8 --tensor_api_gpu_precision=fp32 --tensor_api_attention=sdpa_transposed_param",
+    "ids_equal_of_48": 0,
+    "ids_equal_per_prompt": {
+     "p0": 0,
+     "p1": 0,
+     "p2": 0
+    },
+    "total_nodes": 5807,
+    "accelerators": [
+     {
+      "accelerator": "GPU WebGPU",
+      "delegated_nodes": 5807,
+      "partitions": 3
+     }
+    ],
+    "input_buffers": {
+     "decode": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "WebGPU buffer packed",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_128": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "WebGPU buffer packed",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_1024": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "WebGPU buffer packed",
+      "key_cache_0": "WebGPU buffer packed"
+     }
+    },
+    "webgpu_init_lines_p0": {
+     "from graph": 6,
+     "from serialized data": 0
+    },
+    "runs": [
+     {
+      "pass": 1,
+      "decode_tok_s": 89.28,
+      "prefill_tok_s": 5533.27,
+      "peak_memory_footprint_mb": 18150.8
+     },
+     {
+      "pass": 2,
+      "decode_tok_s": 89.25,
+      "prefill_tok_s": 5405.53,
+      "peak_memory_footprint_mb": 18170.6
+     },
+     {
+      "pass": 3,
+      "decode_tok_s": 89.03,
+      "prefill_tok_s": 5500.45,
+      "peak_memory_footprint_mb": 18327.2
+     }
+    ],
+    "decode_tok_s": {
+     "median": 89.25,
+     "min": 89.03,
+     "max": 89.28,
+     "runs": 3
+    },
+    "prefill_tok_s": {
+     "median": 5500.45,
+     "min": 5405.53,
+     "max": 5533.27,
+     "runs": 3
+    },
+    "peak_memory_footprint_mb_median": 18170.6
+   }
+  }
+ },
+ "litert_lm_webgpu_window2": {
+  "conditions": "the same as litert_lm_webgpu, a second quiet window: the raw graph, sdpa_transposed and the control raw_vt (the raw attention ops with the value caches stored transposed) in turn",
+  "forms": {
+   "tapi_G4": {
+    "attention": "raw",
+    "flags": "--backend=tensor_api_gpu --tensor_api_weights_quant=int8 --tensor_api_lm_head_int8 --tensor_api_gpu_precision=fp32",
+    "ids_equal_of_48": 48,
+    "ids_equal_per_prompt": {
+     "p0": 16,
+     "p1": 16,
+     "p2": 16
+    },
+    "total_nodes": 5889,
+    "accelerators": [
+     {
+      "accelerator": "GPU WebGPU",
+      "delegated_nodes": 5889,
+      "partitions": 3
+     }
+    ],
+    "input_buffers": {
+     "decode": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_128": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_1024": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     }
+    },
+    "runs": [
+     {
+      "pass": 1,
+      "decode_tok_s": 80.82,
+      "prefill_tok_s": 3915.01,
+      "peak_memory_footprint_mb": 18224.6
+     },
+     {
+      "pass": 2,
+      "decode_tok_s": 80.77,
+      "prefill_tok_s": 3939.45,
+      "peak_memory_footprint_mb": 18037.5
+     },
+     {
+      "pass": 3,
+      "decode_tok_s": 80.15,
+      "prefill_tok_s": 4075.02,
+      "peak_memory_footprint_mb": 18282.9
+     }
+    ],
+    "decode_tok_s": {
+     "median": 80.77,
+     "min": 80.15,
+     "max": 80.82,
+     "runs": 3
+    },
+    "prefill_tok_s": {
+     "median": 3939.45,
+     "min": 3915.01,
+     "max": 4075.02,
+     "runs": 3
+    },
+    "peak_memory_footprint_mb_median": 18224.6
+   },
+   "tapi_G4t": {
+    "attention": "sdpa_transposed",
+    "flags": "--backend=tensor_api_gpu --tensor_api_weights_quant=int8 --tensor_api_lm_head_int8 --tensor_api_gpu_precision=fp32 --tensor_api_attention=sdpa_transposed",
+    "ids_equal_of_48": 48,
+    "ids_equal_per_prompt": {
+     "p0": 16,
+     "p1": 16,
+     "p2": 16
+    },
+    "total_nodes": 5725,
+    "accelerators": [
+     {
+      "accelerator": "GPU WebGPU",
+      "delegated_nodes": 5725,
+      "partitions": 3
+     }
+    ],
+    "input_buffers": {
+     "decode": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_128": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_1024": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     }
+    },
+    "runs": [
+     {
+      "pass": 1,
+      "decode_tok_s": 89.43,
+      "prefill_tok_s": 4465.78,
+      "peak_memory_footprint_mb": 18213.9
+     },
+     {
+      "pass": 2,
+      "decode_tok_s": 88.67,
+      "prefill_tok_s": 4321.99,
+      "peak_memory_footprint_mb": 18117.2
+     },
+     {
+      "pass": 3,
+      "decode_tok_s": 88.77,
+      "prefill_tok_s": 4311.53,
+      "peak_memory_footprint_mb": 18210.0
+     }
+    ],
+    "decode_tok_s": {
+     "median": 88.77,
+     "min": 88.67,
+     "max": 89.43,
+     "runs": 3
+    },
+    "prefill_tok_s": {
+     "median": 4321.99,
+     "min": 4311.53,
+     "max": 4465.78,
+     "runs": 3
+    },
+    "peak_memory_footprint_mb_median": 18210.0
+   },
+   "tapi_G4vt": {
+    "attention": "raw_vt (control)",
+    "flags": "--backend=tensor_api_gpu --tensor_api_weights_quant=int8 --tensor_api_lm_head_int8 --tensor_api_gpu_precision=fp32 --tensor_api_attention=raw_vt",
+    "ids_equal_of_48": 48,
+    "ids_equal_per_prompt": {
+     "p0": 16,
+     "p1": 16,
+     "p2": 16
+    },
+    "total_nodes": 5889,
+    "accelerators": [
+     {
+      "accelerator": "GPU WebGPU",
+      "delegated_nodes": 5889,
+      "partitions": 3
+     }
+    ],
+    "input_buffers": {
+     "decode": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_128": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     },
+     "prefill_1024": {
+      "attention_mask": "WebGPU buffer packed",
+      "param_tensor": "no such input",
+      "key_cache_0": "WebGPU buffer packed"
+     }
+    },
+    "runs": [
+     {
+      "pass": 1,
+      "decode_tok_s": 91.86,
+      "prefill_tok_s": 3932.26,
+      "peak_memory_footprint_mb": 18149.0
+     },
+     {
+      "pass": 2,
+      "decode_tok_s": 90.99,
+      "prefill_tok_s": 4023.69,
+      "peak_memory_footprint_mb": 18127.5
+     },
+     {
+      "pass": 3,
+      "decode_tok_s": 90.28,
+      "prefill_tok_s": 3899.45,
+      "peak_memory_footprint_mb": 18154.2
+     }
+    ],
+    "decode_tok_s": {
+     "median": 90.99,
+     "min": 90.28,
+     "max": 91.86,
+     "runs": 3
+    },
+    "prefill_tok_s": {
+     "median": 3932.26,
+     "min": 3899.45,
+     "max": 4023.69,
+     "runs": 3
+    },
+    "peak_memory_footprint_mb_median": 18149.0
+   }
+  }
+ }
+}

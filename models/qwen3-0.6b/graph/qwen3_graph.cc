@@ -92,11 +92,11 @@ TfTensor ApplyRope(const TfTensor& x, const TfTensor& cos,
 // GQA without materializing repeated K/V: kv groups fold into the batch
 // axis and each group's q heads into the sequence axis, so q head h reads
 // kv group h / (heads / kv) (repeat_kv semantics).
-// q [1, heads, seq, hd], k/v [1, kv, kv_seq, hd], mask [1, 1, seq, kv_seq]
-// -> [1, heads, seq, hd].
+// q [1, heads, seq, hd], k/v [1, kv, kv_seq, hd] (v [1, kv, hd, kv_seq] when
+// v_transposed), mask [1, 1, seq, kv_seq] -> [1, heads, seq, hd].
 TfTensor GqaAttention(const TfTensor& q, const TfTensor& k, const TfTensor& v,
                       const TfTensor& mask, int n_heads, int n_kv_groups,
-                      int head_dim) {
+                      int head_dim, bool v_transposed = false) {
   int g = n_heads / n_kv_groups;
   int seq = q.GetShape()[2];
   int kv_seq = k.GetShape()[2];
@@ -104,7 +104,8 @@ TfTensor GqaAttention(const TfTensor& q, const TfTensor& k, const TfTensor& v,
 
   TfTensor qg = Reshape(q, {n_kv_groups, 1, g * seq, head_dim});
   TfTensor kg = Reshape(k, {n_kv_groups, 1, kv_seq, head_dim});
-  TfTensor vg = Reshape(v, {n_kv_groups, 1, kv_seq, head_dim});
+  TfTensor vg = v_transposed ? Reshape(v, {n_kv_groups, 1, head_dim, kv_seq})
+                             : Reshape(v, {n_kv_groups, 1, kv_seq, head_dim});
 
   TfTensor scores = BatchMatMul(qg, kg, /*adj_x=*/false, /*adj_y=*/true);
   scores = Reshape(scores, {1, n_heads, seq, kv_seq});
@@ -112,7 +113,8 @@ TfTensor GqaAttention(const TfTensor& q, const TfTensor& k, const TfTensor& v,
   scores = Add(scores, mask);
   TfTensor attn = Softmax(scores);
   attn = Reshape(attn, {n_kv_groups, 1, g * seq, kv_seq});
-  TfTensor out = BatchMatMul(attn, vg);
+  TfTensor out =
+      BatchMatMul(attn, vg, /*adj_x=*/false, /*adj_y=*/v_transposed);
   return Reshape(out, {1, n_heads, seq, head_dim});
 }
 
@@ -172,6 +174,69 @@ TfTensor SdpaGqaAttention(const TfTensor& q, const TfTensor& k,
   return Reshape(out, {1, n_heads, seq, head_dim});
 }
 
+std::vector<uint8_t> SdpaTransposedAttributes(bool with_param) {
+  flexbuffers::Builder fbb;
+  fbb.Map([&]() {
+    fbb.Int("k_ts_idx", 2);
+    fbb.Int("v_ts_idx", 3);
+    fbb.Bool("is_causal", with_param);
+    if (with_param) fbb.Bool("from_cache_update", true);
+  });
+  fbb.Finish();
+  return fbb.GetBuffer();
+}
+
+// The attention core as the odml.sdpa_transposed composite, with the region
+// boundary LiteRT-Torch gives it (export_hf/experimental/composites/sdpa.py,
+// scaled_dot_product_attention_transposed): operands q * scale
+// [1, heads, seq, hd], the key cache [1, kv, kv_seq, hd], the value cache
+// [1, kv, hd, kv_seq], the mask [1, 1, seq, kv_seq] and, when `param` is
+// given, the param tensor [1, 1, 1, 7]; attributes k_ts_idx 2 and v_ts_idx 3,
+// no scale attribute. Without the param tensor the mask is the additive fp32
+// mask and is_causal is false. With it the mask is bool (allowed where the
+// additive mask is 0) and is_causal and from_cache_update are true, as in a
+// text-only export. The decomposition packs the g q heads of each kv group
+// along the sequence axis (row gi * seq + s reads mask row s), so it reads
+// the caches as they are, and does not read the param tensor.
+TfTensor SdpaTransposedGqaAttention(const TfTensor& q, const TfTensor& k,
+                                    const TfTensor& v_t, const TfTensor& mask,
+                                    const TfTensor* param, int n_heads,
+                                    int n_kv_groups, int head_dim) {
+  const int G = n_kv_groups;
+  const int g = n_heads / n_kv_groups;
+  const int seq = q.GetShape()[2];
+  const int D = head_dim;
+  const float scale = 1.0f / std::sqrt(static_cast<float>(head_dim));
+
+  TfTensor qs = Mul(q, Const1(scale));
+  StableHLOCompositeOptions opts{
+      .name = "odml.sdpa_transposed",
+      .composite_attributes = SdpaTransposedAttributes(param != nullptr)};
+  auto core = [G, g, seq, D](TfTensor dq, TfTensor dk, TfTensor dv,
+                             TfTensor dm) {
+    TfTensor qp = Reshape(dq, {1, G, g * seq, D});
+    TfTensor mp = g == 1 ? dm : Tile(dm, {1, 1, g, 1});  // [1, 1, g*seq, kv]
+    TfTensor scores = BatchMatMul(qp, dk, /*adj_x=*/false, /*adj_y=*/true);
+    if (dm.GetType() == Type::kBOOL) {
+      scores = SelectV2(mp, scores, Const1(-10000.0f));
+    } else {
+      scores = Add(scores, mp);
+    }
+    TfTensor attn = Softmax(scores);
+    TfTensor o = BatchMatMul(attn, dv, /*adj_x=*/false, /*adj_y=*/true);
+    return Reshape(o, {1, G * g, seq, D});  // [1, heads, seq, hd]
+  };
+  if (param == nullptr) {
+    return StableHLOComposite(opts, core, qs, k, v_t, mask);
+  }
+  TfTensor mask_bool = Equal(mask, Const1(0.0f));
+  return StableHLOComposite(
+      opts,
+      [core](TfTensor dq, TfTensor dk, TfTensor dv, TfTensor dm,
+             TfTensor /*dp*/) { return core(dq, dk, dv, dm); },
+      qs, k, v_t, mask_bool, *param);
+}
+
 struct AttentionResult {
   TfTensor output;
   TfTensor key_cache;
@@ -196,8 +261,12 @@ AttentionResult Attention(const Qwen3Config& config, const TfTensor& input,
                 {0, 2, 1, 3});
   k = Transpose(Reshape(k, {1, seq, config.n_kv_groups, config.head_dim}),
                 {0, 2, 1, 3});
+  // sdpa_transposed keeps the value caches as [1, kv, hd, max_seq].
+  const std::vector<int> v_perm = config.values_transposed()
+                                      ? std::vector<int>{0, 2, 3, 1}
+                                      : std::vector<int>{0, 2, 1, 3};
   v = Transpose(Reshape(v, {1, seq, config.n_kv_groups, config.head_dim}),
-                {0, 2, 1, 3});
+                v_perm);
 
   q = RmsNorm(q, GetWeight(weights, prefix + ".q_norm.weight"),
               config.rms_norm_eps, config.rms_norm_composite);
@@ -211,17 +280,25 @@ AttentionResult Attention(const Qwen3Config& config, const TfTensor& input,
                                               inputs.cache_position);
   key_cache_new.SetName(absl::StrCat("key_cache_", layer_idx, "_new"));
   TfTensor value_cache_new = DynamicUpdateSlice(
-      inputs.value_caches[layer_idx], v, inputs.cache_position);
+      inputs.value_caches[layer_idx], v,
+      config.values_transposed() ? inputs.value_cache_position
+                             : inputs.cache_position);
   value_cache_new.SetName(absl::StrCat("value_cache_", layer_idx, "_new"));
 
   TfTensor out =
-      config.sdpa_attention
+      config.sdpa_transposed
+          ? SdpaTransposedGqaAttention(
+                q, key_cache_new, value_cache_new, inputs.attention_mask,
+                config.sdpa_param_tensor ? &inputs.param_tensor : nullptr,
+                config.n_heads, config.n_kv_groups, config.head_dim)
+      : config.sdpa_attention
           ? SdpaGqaAttention(q, key_cache_new, value_cache_new,
                              inputs.attention_mask, config.n_heads,
                              config.n_kv_groups, config.head_dim)
           : GqaAttention(q, key_cache_new, value_cache_new,
                          inputs.attention_mask, config.n_heads,
-                         config.n_kv_groups, config.head_dim);
+                         config.n_kv_groups, config.head_dim,
+                         config.transposed_value_cache);
   out = Reshape(Transpose(out, {0, 2, 1, 3}), {1, seq, config.qkv_out_dim()});
   out = FullyConnected(out, GetWeight(weights, prefix + ".o_proj.weight"));
   return {out, key_cache_new, value_cache_new};
@@ -242,6 +319,8 @@ TfTensor FeedForward(const TfTensor& input, const std::string& prefix,
 std::vector<TfTensor> Qwen3Inputs::AsList() const {
   std::vector<TfTensor> list = {input_ids, cache_position, rope_cos, rope_sin,
                                 attention_mask};
+  if (has_value_cache_position) list.push_back(value_cache_position);
+  if (has_param_tensor) list.push_back(param_tensor);
   for (size_t i = 0; i < key_caches.size(); ++i) {
     list.push_back(key_caches[i]);
     list.push_back(value_caches[i]);
@@ -276,16 +355,31 @@ Qwen3Inputs MakeQwen3Inputs(const Qwen3Config& config, bool is_decode) {
   inputs.attention_mask = TfTensor({.name = "attention_mask",
                                     .type = Type::kFP32,
                                     .shape = {1, 1, seq, config.max_seq}});
+  if (config.values_transposed()) {
+    inputs.has_value_cache_position = true;
+    inputs.value_cache_position = TfTensor(
+        {.name = "value_cache_position", .type = Type::kI32, .shape = {4}});
+    if (config.sdpa_param_tensor) {
+      inputs.has_param_tensor = true;
+      inputs.param_tensor = TfTensor(
+          {.name = "param_tensor", .type = Type::kI32, .shape = {1, 1, 1, 7}});
+    }
+  }
   for (int i = 0; i < config.n_layers; ++i) {
     std::vector<int> shape = {1, config.n_kv_groups, config.max_seq,
                               config.head_dim};
+    std::vector<int> v_shape =
+        config.values_transposed()
+            ? std::vector<int>{1, config.n_kv_groups, config.head_dim,
+                               config.max_seq}
+            : shape;
     inputs.key_caches.push_back(TfTensor({.name = absl::StrCat("key_cache_", i),
                                           .type = Type::kFP32,
                                           .shape = shape}));
     inputs.value_caches.push_back(
         TfTensor({.name = absl::StrCat("value_cache_", i),
                   .type = Type::kFP32,
-                  .shape = shape}));
+                  .shape = v_shape}));
   }
   return inputs;
 }

@@ -38,6 +38,25 @@ struct Qwen3Config {
   // composite over GQA pre-folded into batched multi-head shapes, with the
   // additive mask as the fourth operand (decomposition = the raw fold).
   bool sdpa_attention = false;
+  // Emit the attention core as the odml.sdpa_transposed composite in the
+  // layout LiteRT-Torch's GPU export gives it: the query scaled before the
+  // composite, the key cache [1, kv, max_seq, hd] (k_ts_idx 2), the value
+  // cache transposed to [1, kv, hd, max_seq] (v_ts_idx 3; the value caches of
+  // both signatures take that layout and are written at value_cache_position)
+  // and the GQA packing inside the decomposition. Overrides sdpa_attention.
+  bool sdpa_transposed = false;
+  // sdpa_transposed only: pass the runtime parameter tensor (the
+  // "param_tensor" input) as the fifth operand and the mask as bool
+  // (attention_mask == 0), with from_cache_update and is_causal set, as
+  // LiteRT-Torch does when it emits the GPU composites.
+  bool sdpa_param_tensor = false;
+  // Store the value caches transposed ([1, kv, hd, max_seq], written at
+  // value_cache_position) under the raw attention ops: sdpa_transposed's
+  // cache layout without the composite. sdpa_transposed implies it.
+  bool transposed_value_cache = false;
+  bool values_transposed() const {
+    return transposed_value_cache || sdpa_transposed;
+  }
   // Use the separately quantized "lm_head.weight" from the weight map for the
   // lm_head instead of the shared embedding table (row 12 option).
   bool separate_lm_head = false;

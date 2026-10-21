@@ -346,6 +346,9 @@ absl::Status TensorApiExecutor::Initialize() {
   config_.max_seq = max_seq;
   config_.separate_lm_head = options_.lm_head_int8;
   config_.sdpa_attention = options_.sdpa_attention;
+  config_.sdpa_transposed = options_.sdpa_transposed;
+  config_.transposed_value_cache = options_.transposed_value_cache;
+  config_.sdpa_param_tensor = options_.sdpa_param_tensor;
   config_.rms_norm_composite = options_.rms_norm_composite;
   prefill_lengths_ = options_.prefill_lengths;
   std::sort(prefill_lengths_.begin(), prefill_lengths_.end());
@@ -418,7 +421,12 @@ absl::Status TensorApiExecutor::Initialize() {
   const bool is_benchmark = settings_.GetAdvancedSettings().has_value() &&
                             settings_.GetAdvancedSettings()->is_benchmark;
   ABSL_LOG(INFO) << "tensor_api: options attention "
-                 << (options_.sdpa_attention ? "sdpa" : "raw") << ", norms "
+                 << (options_.sdpa_param_tensor ? "sdpa_transposed_param"
+                     : options_.sdpa_transposed ? "sdpa_transposed"
+                     : options_.sdpa_attention  ? "sdpa"
+                     : options_.transposed_value_cache ? "raw_vt"
+                                                       : "raw")
+                 << ", norms "
                  << (options_.rms_norm_composite ? "composite" : "raw")
                  << ", model file "
                  << (in_memory ? "off"
@@ -543,6 +551,31 @@ absl::Status TensorApiExecutor::Initialize() {
                      << " delegated_nodes=" << acc.delegated_node_count
                      << " partitions=" << acc.partition_count;
     }
+    // The buffer the compiled model creates for the mask input (and two
+    // other inputs to compare with): an input no accelerator reads falls back
+    // to host memory, as ShouldSkipGlobalCausalAttentionMask checks.
+    std::vector<std::string> signatures = {kDecodeSignature};
+    for (int length : prefill_lengths_) {
+      signatures.push_back(PrefillSignature(length));
+    }
+    for (const std::string& sig : signatures) {
+      for (const char* name :
+           {"attention_mask", "param_tensor", "key_cache_0"}) {
+        auto buffer = compiled.CreateInputBuffer(sig, name);
+        if (!buffer) {
+          ABSL_LOG(INFO) << "tensor_api input buffer: " << sig << " " << name
+                         << " none (" << buffer.Error().Message() << ")";
+          continue;
+        }
+        auto type = buffer->BufferType();
+        ABSL_LOG(INFO)
+            << "tensor_api input buffer: " << sig << " " << name << " type "
+            << (type ? static_cast<int>(*type) : -1)
+            << (type && *type == ::litert::TensorBufferType::kHostMemory
+                    ? " (host memory)"
+                    : "");
+      }
+    }
   }
   ABSL_ASSIGN_OR_RETURN(
       ::litert::Options options,
@@ -569,6 +602,13 @@ absl::Status TensorApiExecutor::Initialize() {
       "zero_cache", Type::kFP32,
       {1, config_.n_kv_groups, config_.max_seq, config_.head_dim},
       std::vector<float>(cache_n, 0.0f));
+  zero_value_cache_ =
+      config_.values_transposed()
+          ? lt::Create(
+                "zero_value_cache", Type::kFP32,
+                {1, config_.n_kv_groups, config_.head_dim, config_.max_seq},
+                std::vector<float>(cache_n, 0.0f))
+          : zero_cache_;
   LITERT_ASSIGN_OR_RETURN(
       logits_host_, lm::CreateTensorBuffer<float>({1, 1, config_.vocab_size}));
   ABSL_ASSIGN_OR_RETURN(llm_context_,
@@ -627,7 +667,11 @@ absl::StatusOr<std::string> TensorApiExecutor::ModelKey() const {
   return absl::StrCat(
       "qwen3_0_6b_tensor_api_", kModelKeyVersion, "_", quant,
       options_.lm_head_int8 ? "_lmhead8" : "",
-      options_.sdpa_attention ? "_sdpa" : "",
+      options_.sdpa_param_tensor ? "_sdpatparam"
+      : options_.sdpa_transposed ? "_sdpat"
+      : options_.sdpa_attention  ? "_sdpa"
+      : options_.transposed_value_cache ? "_rawvt"
+                                        : "",
       options_.rms_norm_composite ? "_rmscomposite" : "", "_prefill",
       absl::StrJoin(prefill_lengths_, "-"), "_kv", config_.max_seq, "_w",
       static_cast<uint64_t>(size), "_", mtime_s);
@@ -701,6 +745,22 @@ absl::Status TensorApiExecutor::SetStepInputs(const std::string& signature,
       signature, "cache_position",
       lt::Create("cache_position", Type::kI32, {4},
                  std::vector<int32_t>{0, 0, position, 0})));
+  if (config_.values_transposed()) {
+    ABSL_RETURN_IF_ERROR(runner_->SetInput(
+        signature, "value_cache_position",
+        lt::Create("value_cache_position", Type::kI32, {4},
+                   std::vector<int32_t>{0, 0, 0, position})));
+  }
+  if (config_.sdpa_param_tensor) {
+    // What the composite reads in a LiteRT-Torch export: LiteRT-LM writes
+    // {start, end, end, 0, ...} (FillSingleBufferCacheParamTensor) and the
+    // graph sets element 3 to end - start before the composites.
+    ABSL_RETURN_IF_ERROR(runner_->SetInput(
+        signature, "param_tensor",
+        lt::Create("param_tensor", Type::kI32, {1, 1, 1, 7},
+                   std::vector<int32_t>{position, position + n, position + n,
+                                        n, 0, 0, 0})));
+  }
   std::vector<float> cos_v, sin_v;
   BuildRopeCosSin(position, n, hd, config_.rope_base, cos_v, sin_v);
   ABSL_RETURN_IF_ERROR(runner_->SetInput(
@@ -1049,7 +1109,7 @@ TensorApiExecutor::GetProcessedTokens() const {
 
 absl::Status TensorApiExecutor::Reset() {
   key_caches_.assign(config_.n_layers, zero_cache_);
-  value_caches_.assign(config_.n_layers, zero_cache_);
+  value_caches_.assign(config_.n_layers, zero_value_cache_);
   cached_ids_.clear();
   llm_context_->runtime_state().current_step = 0;
   return Tokens().RollBackToStep(0);
