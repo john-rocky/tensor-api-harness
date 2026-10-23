@@ -132,3 +132,12 @@ Notes:
   as the second try on both GPUs ("first try" rows).
 - The node totals of the new forms are below the raw graph's. How the runtime counts a composite and
   its decomposition was not inspected (as for the other composites above).
+- A model with only this composite (`tools/repro_sdpa_transposed_metal/`, 2026-10-23, same LiteRT
+  commit and Metal accelerator): without the param tensor, Metal is wrong whenever the query heads
+  are grouped over two or more key/value heads (16 over 8 as here, also 8 over 2 and 4 over 2):
+  up to 8 query tokens query head 0 matches the CPU and heads 1 and up do not, in decode and in
+  prefill, and from 9 tokens on every head differs; with 8 over 8 or 16 over 16 heads it matches
+  (8 over 1 up to 8 tokens), and so do the same ops without the composite. The
+  `sdpa_transposed_param` form here sets `from_cache_update` while the caches are written with
+  `DYNAMIC_UPDATE_SLICE`, not `odml.cache_update`; in the minimal model that form is wrong on
+  Metal also with 16 query heads over 16 key/value heads.

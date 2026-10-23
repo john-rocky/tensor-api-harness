@@ -26,6 +26,9 @@ expertise sits in the table, not in the prompt, so the next model starts from th
   What one iteration learned reaches the next one through the file.
 - `iterations/` — the instruction template for one iteration (one goal, acceptance numbers, stop
   conditions, scope) and the close form.
+- `tools/repro_sdpa_transposed_metal/` — a model with only the `odml.sdpa_transposed` composite,
+  run on the CPU and on the GPU accelerator from one `.tflite` file and compared with a float64
+  computation. `run.sh` builds it in a LiteRT checkout and prints one PASS / FAIL line per case.
 - `models/<name>/` — the record of one model going through the table: the filled table, the
   iteration records, the graph code, the reference-dump script, the results. The first one is
   listed below.
@@ -178,7 +181,10 @@ any of its files).
   at 90.99 against 80.77 in a second window, so that gain is the cache layout. On Metal the
   composite gives wrong ids from the first generated token, and so does the form with LiteRT-Torch's
   param tensor on both GPUs; the raw ops with the transposed caches match on Metal (8.057 against
-  8.113 ms/token for the raw graph).
+  8.113 ms/token for the raw graph). A model with only the composite gives the Metal failure
+  whenever the query heads are grouped over two or more key/value heads
+  (`tools/repro_sdpa_transposed_metal/`). The param-tensor form sets `from_cache_update` while this
+  graph writes the caches with `DYNAMIC_UPDATE_SLICE`, not `odml.cache_update`.
 - Hours, from the `Time` sections of iterations 7 to 11 (minutes; 7 and 8 ran at the same time):
 
 | part | iteration 7 | 8 | 9 | 10 | 11 | total |

@@ -1,0 +1,52 @@
+# id	what changes from the base case	flags of sdpa_repro_main
+# Base (A4): query [1, 16, 5, 128], key cache [1, 8, 64, 128], value cache
+# [1, 8, 128, 64], additive fp32 causal mask [1, 1, 5, 64] (query token s sees
+# keys 0..s), attributes k_ts_idx 2, v_ts_idx 3, is_causal false, GPU fp32
+# precision with buffer storage, seed 1. Line: |CPU - GPU| <= 1e-3 (fp16:
+# 1e-2) for every output element and every GPU run.
+A1	one query token at position 5 (decode)	--seq=1
+A2	two query tokens	--seq=2
+A3	four query tokens	--seq=4
+A4	base: five query tokens	--seq=5
+A5	18 query tokens	--seq=18
+B1	8 query heads over 8 kv heads (no grouping)	--seq=5 --q_heads=8 --kv_heads=8
+B2	8 query heads over 1 kv head	--seq=5 --q_heads=8 --kv_heads=1
+B3	every key visible (mask of zeros)	--seq=5 --mask_pattern=all
+B4	no mask operand	--seq=5 --mask=none
+B5	no is_causal attribute	--seq=5 --is_causal=absent
+B6	cache of 128 entries	--seq=5 --kv_len=128
+B7	default GPU storage	--seq=5 --gpu_buffer_storage=default
+B8	bool mask, no is_causal attribute	--seq=5 --mask=bool --is_causal=absent
+B9	fp16 precision	--seq=5 --gpu_precision=fp16 --threshold=1e-2
+B10	16 query heads over 16 kv heads (no grouping)	--seq=5 --q_heads=16 --kv_heads=16
+B11	4 query heads over 2 kv heads	--seq=5 --q_heads=4 --kv_heads=2
+B12	8 query heads over 2 kv heads, 4 tokens, bool mask, no is_causal	--seq=4 --q_heads=8 --kv_heads=2 --mask=bool --is_causal=absent
+C1	param tensor, bool mask, is_causal and from_cache_update true; one token at position 5	--seq=1 --param_tensor --mask=bool --is_causal=true --from_cache_update=true
+C2	the same with five query tokens	--seq=5 --param_tensor --mask=bool --is_causal=true --from_cache_update=true
+C3	C2 without from_cache_update	--seq=5 --param_tensor --mask=bool --is_causal=true
+D1	A4 inside the harness graph's surroundings	--seq=5 --context=harness
+D2	A1 inside the harness graph's surroundings	--seq=1 --context=harness
+D3	C2 inside the harness graph's surroundings	--seq=5 --context=harness --param_tensor --mask=bool --is_causal=true --from_cache_update=true
+# Controls: the decomposition's ops on their own, without the composite.
+R1	A4 without the composite (the same ops)	--seq=5 --composite=false
+R2	A1 without the composite (the same ops)	--seq=1 --composite=false
+R3	A5 without the composite (the same ops)	--seq=18 --composite=false
+# Follow-ups after the first table.
+F1	18 query tokens, 16 query heads over 16 kv heads	--seq=18 --q_heads=16 --kv_heads=16
+F2	18 query tokens, 8 query heads over 1 kv head	--seq=18 --q_heads=8 --kv_heads=1
+F3	4 query heads over 2 kv heads, one token at position 5	--seq=1 --q_heads=4 --kv_heads=2
+F4	C1 with 16 query heads over 16 kv heads	--seq=1 --q_heads=16 --kv_heads=16 --param_tensor --mask=bool --is_causal=true --from_cache_update=true
+F5	C2 with 16 query heads over 16 kv heads	--seq=5 --q_heads=16 --kv_heads=16 --param_tensor --mask=bool --is_causal=true --from_cache_update=true
+F6	C3 with 16 query heads over 16 kv heads	--seq=5 --q_heads=16 --kv_heads=16 --param_tensor --mask=bool --is_causal=true
+F7	F6 with param tensor element 2 = 32	--seq=5 --q_heads=16 --kv_heads=16 --param_tensor --mask=bool --is_causal=true --param_values=0,5,32,5,0,0,0
+F8	8 query tokens	--seq=8
+F9	12 query tokens	--seq=12
+F10	16 query tokens	--seq=16
+F11	17 query tokens	--seq=17
+F12	9 query tokens	--seq=9
+F13	10 query tokens	--seq=10
+F14	11 query tokens	--seq=11
+F15	8 query heads over 1 kv head, 8 tokens	--seq=8 --q_heads=8 --kv_heads=1
+F16	8 query heads over 1 kv head, 12 tokens	--seq=12 --q_heads=8 --kv_heads=1
+F17	C3 with param tensor element 2 = 32	--seq=5 --param_tensor --mask=bool --is_causal=true --param_values=0,5,32,5,0,0,0
+F18	F5 with param tensor element 2 = 32	--seq=5 --q_heads=16 --kv_heads=16 --param_tensor --mask=bool --is_causal=true --from_cache_update=true --param_values=0,5,32,5,0,0,0
