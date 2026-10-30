@@ -36,11 +36,15 @@ that graph alone is about 290 GB. The writer below never holds it: the weights a
    bazel build -c opt //tensor/examples/qwen2_writer:qwen2_writer
    ```
 
-3. Write the decoder (the prefill lengths and the KV cache length are flags):
+3. Write the decoder (the prefill lengths and the KV cache length are flags; the published file uses these):
 
    ```
-   qwen2_writer --weights_dir=PACK --out=PACK/model.tflite --prefill=128,1024 --cache=4096
+   qwen2_writer --weights_dir=PACK --out=PACK/model_p32c2048.tflite --prefill=32,128,1024 --cache=2048
    ```
+
+   Against `--prefill=128,1024 --cache=4096`, on an M4 Max GPU: decode 8.31 against 6.74 tokens/s, the first text of
+   a picture question 5.08 against 6.62 s, and a follow-up question on the same picture 0.96 against 2.45–2.52 s, with
+   the same replies word for word on 23 questions.
 
 4. The embedder, then int8 per channel on its `EMBEDDING_LOOKUP` (ai-edge-quantizer):
 
@@ -59,9 +63,9 @@ that graph alone is about 290 GB. The writer below never holds it: the weights a
 6. The bundle:
 
    ```
-   python qwen72_bundle.py --dec PACK --emb-path embedder_wi8.tflite --vis VISION --g 448 \
+   python qwen72_bundle.py --dec PACK --decode model_p32c2048.tflite --emb-path embedder_wi8.tflite --vis VISION --g 448 \
      --venc vision_encoder_g448_fp32_r4.tflite --tok SNAPSHOT/tokenizer.json --out-dir OUT \
-     --name Qwen2.5-VL-72B-Instruct.litertlm --max-tokens 4096
+     --name Qwen2.5-VL-72B-Instruct.litertlm --max-tokens 2048
    ```
 
 7. Run:
@@ -79,3 +83,6 @@ that graph alone is about 290 GB. The writer below never holds it: the weights a
 - The full int4 model in LiteRT-LM on the Mac GPU: HF (the bf16 weights, fp32 arithmetic) picks the same token at
   98.8 % of the reply positions of four questions (three with a picture, one text only); the answers fit the
   pictures.
+- The writer at step 3, built at `dcb657e8` and run again on 2026-10-31 on the packed weights, gives the decoder section
+  of the published file ([litert-community/Qwen2.5-VL-72B-Instruct-LiteRT](https://huggingface.co/litert-community/Qwen2.5-VL-72B-Instruct-LiteRT))
+  byte for byte: 40,713,491,328 bytes, sha256 `7100b1e61726f285714797ecec9e84f5f6784f34a21a4e66ae88c9c1d370464e`.
