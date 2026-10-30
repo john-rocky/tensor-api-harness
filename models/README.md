@@ -9,3 +9,6 @@ One directory per model that went through the skill table.
 - `graph/` — the C++ graph, weights loader and host loop, laid out as a LiteRT `tensor/examples/<name>` directory (`tools/overlay.sh` links it in).
 - `reference/` — the script that dumps the PyTorch reference and the manifest it writes. The dumps themselves are not committed.
 - `results/` — the checks' outputs, the timing JSON, the delegation log. Small text files only.
+
+`qwen2.5-vl-72b/` did not go through the table. It holds the writer for Qwen2.5-VL-72B-Instruct's decoder, its weight
+packer, the vision and embedder exports and the bundle steps; its README lists them.
