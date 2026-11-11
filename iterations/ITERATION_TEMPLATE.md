@@ -6,7 +6,7 @@ Fill in every angle-bracket field. Keep the "Close" section as it is; the agent 
 ## Read first
 - `skill_table.md` at the repo root (the rows and the status words), then `models/<model>/skill_table.md` (the filled rows so far).
 - `models/<model>/iterations/ITERATION_<N-1>.md` and earlier: the corrections and dead ends of the previous iterations. Do not retry a dead end without a new reason.
-- The reference implementations named in `README.md`.
+- The reference implementations named in `docs/graph-code.md`.
 
 ## Goal (one)
 <the rows of the skill table this iteration takes, by number, and the end state in one sentence>

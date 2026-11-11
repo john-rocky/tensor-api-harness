@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 562" width="860" height="562" role="img" aria-labelledby="t d" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="t">Qwen3-0.6B on an Apple M4 Max: the 16 variants in the timing table</title>
+<desc id="d">Qwen3-0.6B on an Apple M4 Max: the 16 variants in the timing table. 16 variants: 9 matched PyTorch, 4 did not match, 3 did not run. The fastest variant that matched is Metal int8 + lm_head int8 at 4.72 ms per token.</desc>
+<text x="0" y="28" font-size="20" font-weight="600" text-anchor="start" fill="#0b0b0b">Qwen3-0.6B on an Apple M4 Max: the 16 variants in the timing table</text>
+<text x="0" y="52" font-size="14" font-weight="400" text-anchor="start" fill="#52514e">Time per decode token, measured in one session.</text>
+<rect x="0" y="66" width="14" height="14" rx="4" fill="#2a78d6"/>
+<text x="20" y="78" font-size="14" font-weight="400" text-anchor="start" fill="#52514e">All 48 tokens matched PyTorch</text>
+<rect x="260" y="66" width="14" height="14" rx="4" fill="#eb6834"/>
+<text x="280" y="78" font-size="14" font-weight="400" text-anchor="start" fill="#52514e">Tokens differed</text>
+<text x="0" y="123" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">Metal int8 + lm_head int8</text>
+<rect x="240" y="110" width="141.704" height="16" rx="4" fill="#2a78d6"/>
+<text x="389.704" y="123" font-size="14" font-weight="600" text-anchor="start" fill="#0b0b0b">4.72 ms</text>
+<text x="0" y="151" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">Metal fp16 raw</text>
+<rect x="240" y="138" width="172.927" height="16" rx="4" fill="#eb6834"/>
+<text x="420.927" y="151" font-size="14" font-weight="600" text-anchor="start" fill="#0b0b0b">5.76 ms</text>
+<text x="0" y="179" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">Metal int8</text>
+<rect x="240" y="166" width="176.53" height="16" rx="4" fill="#2a78d6"/>
+<text x="424.53" y="179" font-size="14" font-weight="600" text-anchor="start" fill="#0b0b0b">5.88 ms</text>
+<text x="0" y="207" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">CPU int8 + lm_head int8</text>
+<rect x="240" y="194" width="181.934" height="16" rx="4" fill="#2a78d6"/>
+<text x="429.934" y="207" font-size="14" font-weight="600" text-anchor="start" fill="#0b0b0b">6.06 ms</text>
+<text x="0" y="235" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">Metal fp32 rms</text>
+<rect x="240" y="222" width="235.974" height="16" rx="4" fill="#2a78d6"/>
+<text x="483.974" y="235" font-size="14" font-weight="600" text-anchor="start" fill="#0b0b0b">7.86 ms</text>
+<text x="0" y="263" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">Metal fp32 raw</text>
+<rect x="240" y="250" width="241.978" height="16" rx="4" fill="#2a78d6"/>
+<text x="489.978" y="263" font-size="14" font-weight="600" text-anchor="start" fill="#0b0b0b">8.06 ms</text>
+<text x="0" y="291" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">Metal fp32 rms+sdpa</text>
+<rect x="240" y="278" width="249.183" height="16" rx="4" fill="#2a78d6"/>
+<text x="497.183" y="291" font-size="14" font-weight="600" text-anchor="start" fill="#0b0b0b">8.3 ms</text>
+<text x="0" y="319" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">CPU int4 + lm_head int8</text>
+<rect x="240" y="306" width="249.784" height="16" rx="4" fill="#eb6834"/>
+<text x="497.784" y="319" font-size="14" font-weight="600" text-anchor="start" fill="#0b0b0b">8.32 ms</text>
+<text x="0" y="347" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">Metal fp32 sdpa</text>
+<rect x="240" y="334" width="258.19" height="16" rx="4" fill="#2a78d6"/>
+<text x="506.19" y="347" font-size="14" font-weight="600" text-anchor="start" fill="#0b0b0b">8.6 ms</text>
+<text x="0" y="375" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">CPU int8</text>
+<rect x="240" y="362" width="277.104" height="16" rx="4" fill="#eb6834"/>
+<text x="525.104" y="375" font-size="14" font-weight="600" text-anchor="start" fill="#0b0b0b">9.23 ms</text>
+<text x="0" y="403" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">CPU int4</text>
+<rect x="240" y="390" width="341.951" height="16" rx="4" fill="#eb6834"/>
+<text x="589.951" y="403" font-size="14" font-weight="600" text-anchor="start" fill="#0b0b0b">11.39 ms</text>
+<text x="0" y="431" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">CPU fp32 rms</text>
+<rect x="240" y="418" width="543.4" height="16" rx="4" fill="#2a78d6"/>
+<text x="791.4" y="431" font-size="14" font-weight="600" text-anchor="start" fill="#0b0b0b">18.1 ms</text>
+<text x="0" y="459" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">CPU fp32 raw</text>
+<rect x="240" y="446" width="544" height="16" rx="4" fill="#2a78d6"/>
+<text x="792" y="459" font-size="14" font-weight="600" text-anchor="start" fill="#0b0b0b">18.12 ms</text>
+<text x="0" y="487" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">CPU fp32 sdpa</text>
+<text x="240" y="487" font-size="14" font-weight="400" text-anchor="start" fill="#52514e">did not run</text>
+<text x="0" y="515" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">Metal int4</text>
+<text x="240" y="515" font-size="14" font-weight="400" text-anchor="start" fill="#52514e">did not run</text>
+<text x="0" y="543" font-size="14" font-weight="400" text-anchor="start" fill="#0b0b0b">Metal int4 + lm_head int8</text>
+<text x="240" y="543" font-size="14" font-weight="400" text-anchor="start" fill="#52514e">did not run</text>
+</svg>
